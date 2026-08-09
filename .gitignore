@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+dist/
+
+# Python Virtual Environment and caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# IDEs
+.vscode/
+.idea/
+
+# System logs & temporary brain directory files
+.system_generated/
+*.log
+*.sqlite3
+mysql_data/
