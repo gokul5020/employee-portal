@@ -1,49 +1,16 @@
 services:
-  # 1. MySQL Database (Private Service)
-  - type: pserv
-    name: employee-portal-db
-    env: docker
-    dockerfilePath: db/Dockerfile
-    disk:
-      name: mysql-data
-      mountPath: /var/lib/mysql
-      sizeGB: 1
-    envVars:
-      - key: MYSQL_ROOT_PASSWORD
-        value: root
-      - key: MYSQL_DATABASE
-        value: employee_portal
-
-  # 2. Redis Cache (Private Service)
-  - type: pserv
-    name: employee-portal-cache
-    env: docker
-    dockerfilePath: cache/Dockerfile
-
-  # 3. Python FastAPI Backend Service
+  # 1. Python FastAPI Backend Service (Web Service - Free Tier)
   - type: web
     name: employee-portal-backend
     env: docker
     dockerfilePath: backend/Dockerfile
     envVars:
-      - key: DB_USER
-        value: root
-      - key: DB_PASSWORD
-        value: root
-      - key: DB_HOST
-        value: employee-portal-db
-      - key: DB_PORT
-        value: 3306
-      - key: DB_NAME
-        value: employee_portal
-      - key: REDIS_HOST
-        value: employee-portal-cache
-      - key: REDIS_PORT
-        value: 6379
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./employee_portal.db
       - key: JWT_SECRET_KEY
         value: supersecretkeyforjwttokengenerationwhichisverylongandsecure
 
-  # 4. React Frontend Web Service
+  # 2. React Frontend Web Service (Web Service - Free Tier)
   - type: web
     name: employee-portal-frontend
     env: docker
@@ -52,3 +19,5 @@ services:
       - key: VITE_API_BASE_URL
         value: https://employee-portal-backend.onrender.com/api
         type: build
+      - key: PORT
+        value: 80

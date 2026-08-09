@@ -10,13 +10,19 @@ class Settings:
     DB_PORT: str = os.getenv("DB_PORT", "3306")
     DB_NAME: str = os.getenv("DB_NAME", "employee_portal")
     
+    DB_URL_OVERRIDE: str = os.getenv("DATABASE_URL", "")
+
     @property
     def DATABASE_URL(self) -> str:
+        if self.DB_URL_OVERRIDE:
+            return self.DB_URL_OVERRIDE
         # aiomysql is used for async, pymysql is used for sync (migrations / seeding check)
         return f"mysql+aiomysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
         
     @property
     def SYNC_DATABASE_URL(self) -> str:
+        if self.DB_URL_OVERRIDE:
+            return self.DB_URL_OVERRIDE.replace("sqlite+aiosqlite", "sqlite")
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
 
     # JWT Configs

@@ -3,11 +3,14 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import create_engine
 from .config import settings
 
+is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
 # Async Engine for FastAPI endpoints
 async_engine = create_async_engine(
     settings.DATABASE_URL,
     echo=True,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    connect_args={"check_same_thread": False} if is_sqlite else {}
 )
 
 # Async Session local
@@ -20,7 +23,8 @@ AsyncSessionLocal = sessionmaker(
 # Sync Engine for synchronous seeding checks/tasks
 sync_engine = create_engine(
     settings.SYNC_DATABASE_URL,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    connect_args={"check_same_thread": False} if is_sqlite else {}
 )
 
 Base = declarative_base()
