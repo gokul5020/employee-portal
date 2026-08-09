@@ -48,5 +48,7 @@ services:
     name: employee-portal-frontend
     env: docker
     dockerfilePath: frontend/Dockerfile
-    dockerBuildArgs:
-      VITE_API_BASE_URL: https://employee-portal-backend.onrender.com/api # user can update this in blueprint
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://employee-portal-backend.onrender.com/api
+        type: build
