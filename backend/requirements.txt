@@ -11,3 +11,4 @@ reportlab==4.2.2
 python-multipart==0.0.9
 pymysql==1.1.1
 aiosqlite==0.20.0
+bcrypt==4.1.3
