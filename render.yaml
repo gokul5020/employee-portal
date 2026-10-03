@@ -5,6 +5,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: backend/Dockerfile
+    dockerContext: backend
     envVars:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./employee_portal.db
@@ -17,6 +18,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: frontend/Dockerfile
+    dockerContext: frontend
     envVars:
       - key: VITE_API_BASE_URL
         value: https://employee-portal-backend.onrender.com/api
