@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Methodology Workflow – Employee Self-Service Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 20px 60px;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .page-title h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f472b6, #818cf8, #34d399, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+      line-height: 1.3;
+    }
+    .page-title p {
+      color: #64748b;
+      font-size: 0.88rem;
+      margin-top: 8px;
+    }
+
+    /* ── PHASES LAYOUT ── */
+    .phases-container {
+      max-width: 1250px;
+      margin: 0 auto;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      position: relative;
+    }
+
+    .phase-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+    }
+
+    .phase-card {
+      flex: 1;
+      border-radius: 16px;
+      padding: 22px 18px;
+      border: 1.5px solid transparent;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+    .phase-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+    .phase-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+    }
+
+    /* Phase colors */
+    .ph1 { background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.25); }
+    .ph1::before { background: #3b82f6; }
+    .ph1:hover { box-shadow: 0 16px 40px rgba(59,130,246,0.2); }
+
+    .ph2 { background: rgba(139,92,246,0.10); border-color: rgba(139,92,246,0.25); }
+    .ph2::before { background: #8b5cf6; }
+    .ph2:hover { box-shadow: 0 16px 40px rgba(139,92,246,0.2); }
+
+    .ph3 { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.25); }
+    .ph3::before { background: #10b981; }
+    .ph3:hover { box-shadow: 0 16px 40px rgba(16,185,129,0.2); }
+
+    .ph4 { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); }
+    .ph4::before { background: #f59e0b; }
+    .ph4:hover { box-shadow: 0 16px 40px rgba(245,158,11,0.2); }
+
+    .ph5 { background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.25); }
+    .ph5::before { background: #ef4444; }
+    .ph5:hover { box-shadow: 0 16px 40px rgba(239,68,68,0.2); }
+
+    .ph6 { background: rgba(20,184,166,0.10); border-color: rgba(20,184,166,0.25); }
+    .ph6::before { background: #14b8a6; }
+    .ph6:hover { box-shadow: 0 16px 40px rgba(20,184,166,0.2); }
+
+    /* Phase number badge */
+    .phase-num {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: 0.7;
+    }
+    .ph1 .phase-num { color: #60a5fa; }
+    .ph2 .phase-num { color: #a78bfa; }
+    .ph3 .phase-num { color: #34d399; }
+    .ph4 .phase-num { color: #fbbf24; }
+    .ph5 .phase-num { color: #f87171; }
+    .ph6 .phase-num { color: #2dd4bf; }
+
+    .phase-icon { font-size: 2rem; margin-bottom: 10px; }
+
+    .phase-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .phase-steps {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .phase-steps li {
+      font-size: 0.70rem;
+      color: #94a3b8;
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.45;
+    }
+    .phase-steps li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      opacity: 0.5;
+    }
+    .ph1 .phase-steps li::before { color: #60a5fa; }
+    .ph2 .phase-steps li::before { color: #a78bfa; }
+    .ph3 .phase-steps li::before { color: #34d399; }
+    .ph4 .phase-steps li::before { color: #fbbf24; }
+    .ph5 .phase-steps li::before { color: #f87171; }
+    .ph6 .phase-steps li::before { color: #2dd4bf; }
+
+    /* ── ARROW CONNECTORS ── */
+    .arrow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      min-width: 40px;
+    }
+
+    .arrow-shaft {
+      width: 2px;
+      flex: 1;
+      max-height: 40px;
+      background: linear-gradient(to bottom, transparent, #334155, transparent);
+    }
+
+    .arrow-head {
+      font-size: 1.1rem;
+      color: #475569;
+      line-height: 1;
+    }
+
+    .horiz-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #334155;
+      font-size: 1.4rem;
+    }
+
+    /* ── FEEDBACK LOOP ── */
+    .feedback-loop {
+      max-width: 1250px;
+      margin: 24px auto 0;
+      position: relative;
+    }
+
+    .feedback-track {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      position: relative;
+    }
+
+    .feedback-label-box {
+      background: rgba(99,102,241,0.10);
+      border: 1.5px solid rgba(99,102,241,0.25);
+      border-radius: 12px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.78rem;
+      color: #818cf8;
+      font-weight: 600;
+    }
+
+    .feedback-arrow-line {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex: 1;
+    }
+
+    .fb-line {
+      height: 2px;
+      flex: 1;
+      background: linear-gradient(to right, rgba(99,102,241,0.4), rgba(99,102,241,0.1));
+    }
+
+    .fb-line-rev {
+      background: linear-gradient(to left, rgba(99,102,241,0.4), rgba(99,102,241,0.1));
+    }
+
+    /* ── DECISION DIAMOND ── */
+    .decision-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 6px;
+    }
+
+    .cache-decision {
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.65rem;
+      color: #34d399;
+      text-align: center;
+      width: 70px;
+    }
+
+    /* ── FOOTER ── */
+    .fig-caption {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.3px;
+    }
+
+    .sub-badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      margin-top: 10px;
+      letter-spacing: 0.5px;
+    }
+    .sb-blue { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+    .sb-purple { background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); }
+    .sb-green { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+    .sb-amber { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .sb-red { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .sb-teal { background: rgba(20,184,166,0.12); color: #2dd4bf; border: 1px solid rgba(20,184,166,0.25); }
+
+    @keyframes slide-right {
+      0% { transform: translateX(-4px); opacity: 0.5; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .animated-arrow {
+      animation: glow-pulse 2.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Employee Self-Service Portal<br/>End-to-End Methodology Workflow</h1>
+  <p>Figure 4.1 &nbsp;·&nbsp; Corpora Autonomous Request Lifecycle &amp; Processing Pipeline</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- PHASES ROW -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="phases-container">
+
+  <!-- PHASE 1: Auth -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph1">
+      <div class="phase-num">4.1.1 &nbsp;Input</div>
+      <div class="phase-icon">🔑</div>
+      <div class="phase-title">User Authentication</div>
+      <ul class="phase-steps">
+        <li>User submits email + password</li>
+        <li>BCrypt.checkpw() verification</li>
+        <li>JWT token issued (HS256)</li>
+        <li>24-hour expiry set</li>
+        <li>Token returned to client</li>
+      </ul>
+      <span class="sub-badge sb-blue">jose · bcrypt</span>
+    </div>
+  </div>
+
+  <div class="arrow-connector">
+    <div class="horiz-arrow animated-arrow">›</div>
+  </div>
+
+  <!-- PHASE 2: RBAC -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph2">
+      <div class="phase-num">4.1.2 &nbsp;Access Control</div>
+      <div class="phase-icon">🛡️</div>
+      <div class="phase-title">Role-Based Access Control</div>
+      <ul class="phase-steps">
+        <li>HTTPBearer extracts JWT</li>
+        <li>jwt.decode validates signature</li>
+        <li>RoleChecker class runs</li>
+        <li>EMPLOYEE / MANAGER / ADMIN</li>
+        <li>HTTP 403 if unauthorized</li>
+      </ul>
+      <span class="sub-badge sb-purple">RoleChecker · Depends()</span>
+    </div>
+  </div>
+
+  <div class="arrow-connector">
+    <div class="horiz-arrow animated-arrow">›</div>
+  </div>
+
+  <!-- PHASE 3: Cache -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph3">
+      <div class="phase-num">4.1.3 &nbsp;Cache Lookup</div>
+      <div class="phase-icon">⚡</div>
+      <div class="phase-title">Cache-First Data Access</div>
+      <ul class="phase-steps">
+        <li>CacheManager.get(key) called</li>
+        <li>Redis HIT → return instantly</li>
+        <li>Redis MISS → query DB</li>
+        <li>Fallback: in-memory cache</li>
+        <li>TTL: 600 seconds (10 min)</li>
+      </ul>
+      <span class="sub-badge sb-green">Redis · InMemoryCache</span>
+    </div>
+  </div>
+
+  <div class="arrow-connector">
+    <div class="horiz-arrow animated-arrow">›</div>
+  </div>
+
+  <!-- PHASE 4: DB -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph4">
+      <div class="phase-num">4.1.4 &nbsp;Data Layer</div>
+      <div class="phase-icon">🗄️</div>
+      <div class="phase-title">Database Query &amp; Persistence</div>
+      <ul class="phase-steps">
+        <li>AsyncSession via SQLAlchemy</li>
+        <li>MySQL (local) / SQLite (cloud)</li>
+        <li>ORM models: User, Attendance,</li>
+        <li>&nbsp;&nbsp;LeaveRequest, Payslip, Training</li>
+        <li>Pydantic schema validation</li>
+      </ul>
+      <span class="sub-badge sb-amber">SQLAlchemy · aiosqlite</span>
+    </div>
+  </div>
+
+  <div class="arrow-connector">
+    <div class="horiz-arrow animated-arrow">›</div>
+  </div>
+
+  <!-- PHASE 5: Business Logic -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph5">
+      <div class="phase-num">4.1.5 &nbsp;Processing</div>
+      <div class="phase-icon">⚙️</div>
+      <div class="phase-title">Business Logic &amp; Workflows</div>
+      <ul class="phase-steps">
+        <li>Leave: PENDING → APPROVED/REJECTED</li>
+        <li>Payslip: basic + allowances - deductions</li>
+        <li>Attendance hours computation</li>
+        <li>PDF / CSV report generation</li>
+        <li>Manager review + comments</li>
+      </ul>
+      <span class="sub-badge sb-red">reports.py · payroll.py</span>
+    </div>
+  </div>
+
+  <div class="arrow-connector">
+    <div class="horiz-arrow animated-arrow">›</div>
+  </div>
+
+  <!-- PHASE 6: Frontend -->
+  <div class="phase-wrapper">
+    <div class="phase-card ph6">
+      <div class="phase-num">4.1.6 &nbsp;Output</div>
+      <div class="phase-icon">🖥️</div>
+      <div class="phase-title">Frontend Rendering &amp; Display</div>
+      <ul class="phase-steps">
+        <li>Axios response updates React state</li>
+        <li>Dashboard charts re-render</li>
+        <li>Role-aware UI components shown</li>
+        <li>Leave status updated live</li>
+        <li>Responsive Tailwind layout</li>
+      </ul>
+      <span class="sub-badge sb-teal">React + Vite · TypeScript</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- FEEDBACK LOOP -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="feedback-loop">
+  <div class="feedback-track">
+    <div class="fb-line"></div>
+    <div class="feedback-label-box">
+      <span>🔄</span>
+      <div>
+        <div style="font-size:0.78rem;font-weight:700;">Adaptive Re-Authentication Loop</div>
+        <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">JWT expires after 24h · Client re-submits credentials · New token issued</div>
+      </div>
+      <span>🔄</span>
+    </div>
+    <div class="fb-line fb-line-rev"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;padding:0 0;margin-top:4px;">
+    <div style="font-size:0.62rem;color:#334155;padding-left:0;">↑ Phase 1: Login</div>
+    <div style="font-size:0.62rem;color:#334155;padding-right:0;">Phase 6: Session Expired ↑</div>
+  </div>
+</div>
+
+<div class="fig-caption" style="margin-top:28px;">
+  Figure 4.1 — Employee Self-Service Portal · Autonomous Request Lifecycle &amp; Methodology Workflow
+</div>
+
+</body>
+</html>

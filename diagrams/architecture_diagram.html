@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Architecture Diagram – Employee Self-Service Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .page-title h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    .page-title p {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+
+    .diagram-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tier {
+      border-radius: 20px;
+      padding: 24px 28px;
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .tier-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.65;
+      margin-bottom: 16px;
+    }
+
+    .tier-client {
+      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(99,102,241,0.08));
+      border-color: rgba(96,165,250,0.25);
+    }
+    .tier-client .tier-label { color: #60a5fa; }
+
+    .tier-backend {
+      background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(5,150,105,0.06));
+      border-color: rgba(52,211,153,0.20);
+      margin: -4px 30px;
+      z-index: 2;
+      position: relative;
+    }
+    .tier-backend .tier-label { color: #34d399; }
+
+    .tier-data {
+      background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(234,88,12,0.06));
+      border-color: rgba(251,191,36,0.20);
+    }
+    .tier-data .tier-label { color: #fbbf24; }
+
+    .modules-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+
+    .module {
+      flex: 1;
+      min-width: 140px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      cursor: default;
+    }
+    .module:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+
+    .module-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .module-title { font-size: 0.82rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+    .module-detail { font-size: 0.72rem; color: #94a3b8; line-height: 1.5; }
+    .module-detail span { display: block; }
+
+    .tier-client .module:hover { border-color: rgba(96,165,250,0.5); box-shadow: 0 8px 30px rgba(59,130,246,0.15); }
+    .tier-backend .module:hover { border-color: rgba(52,211,153,0.5); box-shadow: 0 8px 30px rgba(16,185,129,0.15); }
+    .tier-data .module:hover { border-color: rgba(251,191,36,0.5); box-shadow: 0 8px 30px rgba(245,158,11,0.15); }
+
+    .backend-inner { display: flex; gap: 14px; align-items: stretch; }
+    .backend-section { display: flex; flex-direction: column; gap: 10px; }
+    .backend-auth { min-width: 175px; }
+    .backend-routes { flex: 1; }
+    .backend-cache { min-width: 160px; }
+
+    .routes-grid { display: flex; gap: 8px; flex-wrap: wrap; height: 100%; align-content: center; }
+
+    .route-pill {
+      background: rgba(52,211,153,0.08);
+      border: 1px solid rgba(52,211,153,0.20);
+      border-radius: 10px;
+      padding: 10px 12px;
+      flex: 1;
+      min-width: 90px;
+      transition: all 0.2s ease;
+    }
+    .route-pill:hover { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.5); transform: translateY(-2px); }
+    .route-endpoint { font-family: 'Courier New', monospace; font-size: 0.75rem; font-weight: 700; color: #34d399; margin-bottom: 4px; }
+    .route-desc { font-size: 0.68rem; color: #94a3b8; }
+
+    .connector { display: flex; justify-content: center; align-items: center; height: 42px; position: relative; z-index: 3; }
+    .arrow-line { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .arrow-label { font-size: 0.68rem; color: #64748b; background: #0f1117; padding: 2px 10px; border-radius: 20px; border: 1px solid #1e293b; white-space: nowrap; }
+    .double-arrow { font-size: 1.4rem; color: #475569; line-height: 1; }
+
+    .badge { display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-top: 4px; letter-spacing: 0.5px; }
+    .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-green { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-amber { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-red { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+
+    .section-divider { width: 1px; background: rgba(255,255,255,0.08); align-self: stretch; }
+
+    .legend { display: flex; justify-content: center; gap: 24px; margin-top: 32px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #64748b; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .fig-caption { text-align: center; margin-top: 20px; font-size: 0.8rem; font-weight: 600; color: #475569; letter-spacing: 0.3px; }
+
+    @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    .live-dot { width: 8px; height: 8px; background: #34d399; border-radius: 50%; display: inline-block; margin-right: 5px; animation: pulse-glow 2s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Employee Self-Service Portal — System Architecture</h1>
+  <p>Figure 6.1 &nbsp;·&nbsp; End-to-End System Architecture Diagram</p>
+</div>
+
+<div class="diagram-wrapper">
+
+  <!-- TIER 1: CLIENT -->
+  <div class="tier tier-client">
+    <div class="tier-label">CLIENT TIER &nbsp;·&nbsp; React + Vite / TypeScript SPA &nbsp;·&nbsp; NGINX (Docker)</div>
+    <div class="modules-row">
+      <div class="module">
+        <div class="module-icon">📊</div>
+        <div class="module-title">Dashboard</div>
+        <div class="module-detail">
+          <span>Attendance overview</span>
+          <span>Leave summary cards</span>
+          <span>Analytics charts</span>
+          <span>Quick-action shortcuts</span>
+        </div>
+      </div>
+      <div class="module">
+        <div class="module-icon">🏖️</div>
+        <div class="module-title">Leave Management</div>
+        <div class="module-detail">
+          <span>Apply for leave</span>
+          <span>Track status (Pending/Approved)</span>
+          <span>Manager approval panel</span>
+          <span>Leave history &amp; types</span>
+        </div>
+      </div>
+      <div class="module">
+        <div class="module-icon">💰</div>
+        <div class="module-title">Payroll &amp; Payslips</div>
+        <div class="module-detail">
+          <span>Monthly payslip view</span>
+          <span>Basic + Allowances - Deductions</span>
+          <span>Net salary summary</span>
+          <span>PDF / CSV export</span>
+        </div>
+      </div>
+      <div class="module">
+        <div class="module-icon">👤</div>
+        <div class="module-title">Profile &amp; Training</div>
+        <div class="module-detail">
+          <span>Employee profile info</span>
+          <span>SDG-aligned training courses</span>
+          <span>Completion tracking</span>
+          <span>Department &amp; role display</span>
+        </div>
+      </div>
+      <div class="module">
+        <div class="module-icon">🔑</div>
+        <div class="module-title">Login / Auth UI</div>
+        <div class="module-detail">
+          <span>Email + Password form</span>
+          <span>JWT stored client-side</span>
+          <span>Role-aware routing</span>
+          <span>Session expiry handling</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW 1 -->
+  <div class="connector">
+    <div class="arrow-line">
+      <div class="double-arrow">⇅</div>
+      <div class="arrow-label">REST / JSON over HTTPS &nbsp;·&nbsp; Axios HTTP Client</div>
+    </div>
+  </div>
+
+  <!-- TIER 2: BACKEND -->
+  <div class="tier tier-backend">
+    <div class="tier-label">
+      <span class="live-dot"></span>APPLICATION BACKEND &nbsp;·&nbsp; FastAPI / Python &nbsp;·&nbsp; Port 8080 (Docker)
+    </div>
+    <div class="backend-inner">
+      <!-- Auth Section -->
+      <div class="backend-section backend-auth">
+        <div class="module">
+          <div class="module-icon">🛡️</div>
+          <div class="module-title">JWT Auth &amp; Security</div>
+          <div class="module-detail">
+            <span>HTTPBearer token extraction</span>
+            <span>BCrypt password hashing</span>
+            <span>HS256 JWT algorithm</span>
+            <span>24-hour token expiry</span>
+          </div>
+          <span class="badge badge-purple">RoleChecker Middleware</span>
+        </div>
+        <div class="module">
+          <div class="module-icon">👥</div>
+          <div class="module-title">Role Hierarchy</div>
+          <div class="module-detail">
+            <span>🔴 ROLE_ADMIN — Full access</span>
+            <span>🟡 ROLE_MANAGER — Team lead</span>
+            <span>🟢 ROLE_EMPLOYEE — Self-service</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Routes Section -->
+      <div class="backend-section backend-routes">
+        <div class="module-title" style="padding:0 4px 10px;color:#94a3b8;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;">API Routes</div>
+        <div class="routes-grid">
+          <div class="route-pill">
+            <div class="route-endpoint">/api/auth</div>
+            <div class="route-desc">Login · Token issue · Validate</div>
+          </div>
+          <div class="route-pill">
+            <div class="route-endpoint">/api/profile</div>
+            <div class="route-desc">Employee info · Update profile</div>
+          </div>
+          <div class="route-pill">
+            <div class="route-endpoint">/api/attendance</div>
+            <div class="route-desc">Check-in/out · Hours worked · History</div>
+          </div>
+          <div class="route-pill">
+            <div class="route-endpoint">/api/leave</div>
+            <div class="route-desc">Apply · Approve · Reject · History</div>
+          </div>
+          <div class="route-pill">
+            <div class="route-endpoint">/api/payroll</div>
+            <div class="route-desc">Payslips · Salary calculation</div>
+          </div>
+          <div class="route-pill">
+            <div class="route-endpoint">/api/reports</div>
+            <div class="route-desc">PDF/CSV export · Analytics</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Cache Section -->
+      <div class="backend-section backend-cache">
+        <div class="module">
+          <div class="module-icon">⚡</div>
+          <div class="module-title">Redis Cache</div>
+          <div class="module-detail">
+            <span>Cache-first read strategy</span>
+            <span>10-minute TTL (600s)</span>
+            <span>JSON serialization</span>
+          </div>
+          <span class="badge badge-green">Port 6379</span>
+        </div>
+        <div class="module">
+          <div class="module-icon">🔄</div>
+          <div class="module-title">In-Memory Fallback</div>
+          <div class="module-detail">
+            <span>Auto-fallback when Redis offline</span>
+            <span>Same API interface</span>
+            <span>Time-based expiry logic</span>
+          </div>
+          <span class="badge badge-amber">Resilience Layer</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW 2 -->
+  <div class="connector">
+    <div class="arrow-line">
+      <div class="double-arrow">⇅</div>
+      <div class="arrow-label">SQLAlchemy Async ORM &nbsp;·&nbsp; Pydantic Schema Validation</div>
+    </div>
+  </div>
+
+  <!-- TIER 3: DATA -->
+  <div class="tier tier-data">
+    <div class="tier-label">DATA PERSISTENCE &amp; DEPLOYMENT INFRASTRUCTURE</div>
+    <div class="modules-row">
+      <div class="module">
+        <div class="module-icon">🗄️</div>
+        <div class="module-title">MySQL 8.0 Database</div>
+        <div class="module-detail">
+          <span>Primary production store</span>
+          <span>Tables: users, attendance,</span>
+          <span>leave_requests, payslips,</span>
+          <span>training_courses</span>
+        </div>
+        <span class="badge badge-amber">Port 3306 · aiomysql</span>
+      </div>
+      <div class="module">
+        <div class="module-icon">💾</div>
+        <div class="module-title">SQLite (Cloud Fallback)</div>
+        <div class="module-detail">
+          <span>Render.com free-tier DB</span>
+          <span>aiosqlite async driver</span>
+          <span>Same SQLAlchemy ORM</span>
+          <span>Auto-seeded on startup</span>
+        </div>
+        <span class="badge badge-blue">DATABASE_URL env override</span>
+      </div>
+      <div class="module">
+        <div class="module-icon">🐳</div>
+        <div class="module-title">Docker Containers</div>
+        <div class="module-detail">
+          <span>docker-compose.yml orchestration</span>
+          <span>Services: db, cache, backend,</span>
+          <span>frontend (4 containers)</span>
+          <span>Persistent mysql_data volume</span>
+        </div>
+        <span class="badge badge-blue">Cross-platform env</span>
+      </div>
+      <div class="module">
+        <div class="module-icon">☁️</div>
+        <div class="module-title">Render.com Deployment</div>
+        <div class="module-detail">
+          <span>render.yaml IaC config</span>
+          <span>Backend: Web service (Docker)</span>
+          <span>Frontend: Static + NGINX</span>
+          <span>Auto-deploy on git push</span>
+        </div>
+        <span class="badge badge-purple">Free Tier · CI/CD</span>
+      </div>
+      <div class="module">
+        <div class="module-icon">🔒</div>
+        <div class="module-title">Security Layer</div>
+        <div class="module-detail">
+          <span>CORS middleware configured</span>
+          <span>BCrypt password hashing</span>
+          <span>JWT_SECRET env variable</span>
+          <span>HTTPS enforced on Render</span>
+        </div>
+        <span class="badge badge-red">Production-ready</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#60a5fa;"></div> Client Tier (React SPA)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#34d399;"></div> Backend (FastAPI)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24;"></div> Data &amp; Deployment</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;"></div> Security / Auth</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f87171;"></div> Hardened / Protected</div>
+</div>
+
+<div class="fig-caption">Figure 6.1 — Employee Self-Service Portal · End-to-End System Architecture Diagram</div>
+
+</body>
+</html>

@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  User as UserIcon, 
-  CalendarDays, 
-  DollarSign, 
-  LogOut, 
-  Menu
+import {
+  LayoutDashboard,
+  User as UserIcon,
+  CalendarDays,
+  DollarSign,
+  LogOut,
+  Menu,
+  X,
+  Search,
+  Megaphone,
 } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
+import { CommandPalette } from './CommandPalette';
+import { AnnouncementsModal } from './AnnouncementsModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,125 +21,418 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
+const menuItems = [
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'My Profile', path: '/profile', icon: UserIcon },
+  { name: 'Leave & Attendance', path: '/leaves', icon: CalendarDays },
+  { name: 'Payroll', path: '/payroll', icon: DollarSign },
+];
+
+function getRoleBadgeClass(role: string): string {
+  switch (role) {
+    case 'ROLE_ADMIN': return 'badge badge-admin';
+    case 'ROLE_MANAGER': return 'badge badge-manager';
+    default: return 'badge badge-employee';
+  }
+}
+
+function getRoleLabel(role: string): string {
+  switch (role) {
+    case 'ROLE_ADMIN': return 'HR Admin';
+    case 'ROLE_MANAGER': return 'Manager';
+    default: return 'Employee';
+  }
+}
+
+interface SidebarContentProps {
+  user: any;
+  currentPath: string;
+  onNavigate: (path: string) => void;
+  onLogout: () => void;
+}
+
+const SidebarContent: React.FC<SidebarContentProps> = ({ user, currentPath, onNavigate, onLogout }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    {/* Logo */}
+    <div
+      style={{
+        height: '56px',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 20px',
+        borderBottom: '1px solid var(--border-default)',
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: 'var(--color-brand-600)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 700,
+          fontSize: 11,
+          color: '#fff',
+          flexShrink: 0,
+          letterSpacing: '-0.02em',
+        }}
+      >
+        EP
+      </div>
+      <span
+        style={{
+          marginLeft: 10,
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        Employee Portal
+      </span>
+    </div>
+
+    {/* Navigation */}
+    <nav style={{ flex: 1, padding: '14px 12px', overflowY: 'auto' }}>
+      <div style={{ marginBottom: 4 }}>
+        {menuItems.map((item) => {
+          const active = currentPath === item.path;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => onNavigate(item.path)}
+              className={`nav-item ${active ? 'active' : ''}`}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon size={16} />
+              <span>{item.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+
+    {/* User Footer */}
+    <div
+      style={{
+        padding: '14px 16px',
+        borderTop: '1px solid var(--border-default)',
+        backgroundColor: 'var(--bg-surface-raised)',
+        flexShrink: 0,
+      }}
+    >
+      {/* User info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            backgroundColor: 'var(--brand-subtle)',
+            border: '1px solid var(--brand-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--color-brand-600)',
+            flexShrink: 0,
+          }}
+        >
+          {user?.fullName?.charAt(0) || 'U'}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              margin: 0,
+            }}
+          >
+            {user?.fullName}
+          </p>
+          <p
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              margin: 0,
+            }}
+          >
+            {user?.email}
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className={getRoleBadgeClass(user?.role)}>
+          {getRoleLabel(user?.role)}
+        </span>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="btn btn-danger btn-sm"
+          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+          title="Sign out"
+        >
+          <LogOut size={13} />
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
 
-  const menuItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'My Profile', path: '/profile', icon: UserIcon },
-    { name: 'Leaves & Time', path: '/leaves', icon: CalendarDays },
-    { name: 'Payroll & Payslips', path: '/payroll', icon: DollarSign },
-  ];
+  // Listen for custom event to open palette
+  useEffect(() => {
+    const handleOpen = () => setCommandPaletteOpen(true);
+    window.addEventListener('open-command-palette', handleOpen);
+    return () => window.removeEventListener('open-command-palette', handleOpen);
+  }, []);
 
   const handleNavigate = (path: string) => {
     navigate(path);
+    setDrawerOpen(false);
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'ROLE_ADMIN': return 'bg-purple-900/40 text-purple-300 border border-purple-500/30';
-      case 'ROLE_MANAGER': return 'bg-blue-900/40 text-blue-300 border border-blue-500/30';
-      default: return 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30';
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'ROLE_ADMIN': return 'HR Admin';
-      case 'ROLE_MANAGER': return 'Manager';
-      default: return 'Employee';
-    }
-  };
+  const currentPageName =
+    menuItems.find((item) => item.path === location.pathname)?.name || 'Portal';
 
   return (
-    <div className="min-h-screen flex bg-[#080b11] text-gray-200 overflow-hidden relative">
-      {/* Background Decorative Glow Spots */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full glow-spot-blue pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full glow-spot-purple pointer-events-none animate-pulse-slow"></div>
-
-      {/* Sidebar for Desktop */}
-      <aside className="hidden lg:flex lg:flex-shrink-0">
-        <div className="flex flex-col w-64 border-r border-slate-900 bg-[#080b11]/80 backdrop-blur-md">
-          {/* Logo Section */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-900 space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-md shadow-brand-500/10">
-              EP
-            </div>
-            <span className="font-extrabold text-sm tracking-tight text-white uppercase">Self-Service</span>
-          </div>
-          
-          {/* Menu Items */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {menuItems.map((item) => {
-              const active = location.pathname === item.path;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => handleNavigate(item.path)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 group ${
-                    active 
-                      ? 'bg-brand-600/15 border border-brand-500/20 text-brand-400 font-bold shadow-md shadow-brand-500/5' 
-                      : 'border border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40'
-                  }`}
-                >
-                  <Icon size={16} className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-brand-400' : 'text-slate-400 group-hover:text-white'}`} />
-                  <span>{item.name}</span>
-                </button>
-              );
-            })}
-          </nav>
-          
-          {/* User Footer Profile Summary */}
-          <div className="p-4 border-t border-slate-900 bg-slate-950/20">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-sm">
-                {user?.fullName?.charAt(0) || 'U'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user?.fullName}</p>
-                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mb-4">
-              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${getRoleBadge(user?.role)}`}>
-                {getRoleLabel(user?.role)}
-              </span>
-            </div>
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 border border-slate-800 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all duration-200"
-            >
-              <LogOut size={14} />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)' }}>
+      {/* Desktop Sidebar */}
+      <aside
+        className="sidebar"
+        style={{
+          width: 230,
+          flexShrink: 0,
+          display: 'none',
+        }}
+        id="desktop-sidebar"
+      >
+        <SidebarContent
+          user={user}
+          currentPath={location.pathname}
+          onNavigate={handleNavigate}
+          onLogout={onLogout}
+        />
       </aside>
 
+      {/* Media query styling */}
+      <style>{`
+        @media (min-width: 1024px) {
+          #desktop-sidebar { display: block !important; }
+          #mobile-header-title { display: none; }
+          #header-search-bar { display: flex !important; }
+          #mobile-menu-button { display: none !important; }
+          #desktop-page-title { display: block !important; }
+        }
+        @media (max-width: 1023px) {
+          #mobile-header-title { display: flex; }
+          #header-search-bar { display: none; }
+          #desktop-page-title { display: none; }
+        }
+      `}</style>
+
+      {/* Mobile Drawer */}
+      {drawerOpen && (
+        <>
+          <div
+            className="drawer-overlay"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="drawer" role="dialog" aria-label="Navigation menu">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation"
+                className="btn-ghost"
+                style={{ padding: '6px', borderRadius: '6px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <SidebarContent
+              user={user}
+              currentPath={location.pathname}
+              onNavigate={handleNavigate}
+              onLogout={onLogout}
+            />
+          </div>
+        </>
+      )}
+
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Top Navbar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-slate-900 bg-[#080b11]/70 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center space-x-3">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Top Header */}
+        <header
+          className="app-header"
+          style={{
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 20px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            flexShrink: 0,
+          }}
+        >
+          {/* Header Left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Mobile menu button */}
             <button
-              onClick={() => {}}
-              className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50"
+              onClick={() => setDrawerOpen(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', padding: '6px', lineHeight: 1 }}
+              id="mobile-menu-button"
+              aria-label="Open navigation menu"
+              aria-expanded={drawerOpen}
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
-            <h1 className="text-lg font-bold text-white tracking-tight">
-              {menuItems.find(item => item.path === location.pathname)?.name || 'Portal'}
-            </h1>
+
+            {/* Mobile Title */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              id="mobile-header-title"
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 5,
+                  backgroundColor: 'var(--color-brand-600)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: 9,
+                  color: '#fff',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                EP
+              </div>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Employee Portal
+              </span>
+            </div>
+
+            {/* Desktop Page Title */}
+            <span
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+              }}
+              id="desktop-page-title"
+            >
+              {currentPageName}
+            </span>
+          </div>
+
+          {/* Header Center / Search Bar (Desktop) */}
+          <div
+            id="header-search-bar"
+            onClick={() => setCommandPaletteOpen(true)}
+            style={{
+              display: 'none',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 14px',
+              backgroundColor: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 6,
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: '0.8125rem',
+              width: 260,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Search size={14} />
+            <span style={{ flex: 1 }}>Search or jump to...</span>
+            <kbd className="command-palette-kbd" style={{ fontSize: '0.625rem' }}>⌘K</kbd>
+          </div>
+
+          {/* Header Right: Actions & Theme Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Announcements Button */}
+            <button
+              type="button"
+              onClick={() => setAnnouncementsOpen(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ position: 'relative', padding: '6px 10px', gap: 6 }}
+              aria-label="View announcements"
+              title="Company Notices & Updates"
+            >
+              <Megaphone size={14} />
+              <span style={{ fontSize: '0.75rem' }}>Notices</span>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: '#3b82f6',
+                  position: 'absolute',
+                  top: 5,
+                  right: 5,
+                }}
+              />
+            </button>
+
+            {/* Theme Toggle (Light / Dark / System) */}
+            <ThemeToggle />
           </div>
         </header>
 
-        {/* Content Body */}
-        <main className="flex-1 p-6 relative">
+        {/* Page Content */}
+        <main
+          style={{
+            flex: 1,
+            padding: '24px 24px',
+            overflowY: 'auto',
+          }}
+        >
           {children}
         </main>
       </div>
+
+      {/* Command Palette Modal */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        user={user}
+      />
+
+      {/* Announcements Modal */}
+      <AnnouncementsModal
+        isOpen={announcementsOpen}
+        onClose={() => setAnnouncementsOpen(false)}
+      />
     </div>
   );
 };

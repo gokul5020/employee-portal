@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { profileApi } from '../services/api';
-import { User as UserIcon, Shield, CreditCard, CheckCircle2, AlertCircle, Save } from 'lucide-react';
+import { Shield, CreditCard, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 interface ProfileProps {
   user: any;
@@ -13,10 +14,11 @@ export const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
   const [bankAccountNumber, setBankAccountNumber] = useState(user?.bankAccountNumber || '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (user) {
-      setFullName(user.fullName);
+      setFullName(user.fullName || '');
       setBankName(user.bankName || '');
       setBankAccountNumber(user.bankAccountNumber || '');
     }
@@ -27,154 +29,241 @@ export const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
     setLoading(true);
     setMessage(null);
     try {
-      const updated = await profileApi.updateProfile({
-        fullName,
-        bankName,
-        bankAccountNumber,
-      });
+      const updated = await profileApi.updateProfile({ fullName, bankName, bankAccountNumber });
       onProfileUpdate(updated);
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: 'success', text: 'Profile updated.' });
+      showToast('Profile saved successfully', 'success');
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data || 'Failed to update profile.' });
+      const msg = err.response?.data;
+      const text = typeof msg === 'string' ? msg : 'Failed to save profile. Please try again.';
+      setMessage({ type: 'error', text });
     } finally {
       setLoading(false);
     }
   };
 
+  function getRoleLabel(role: string): string {
+    switch (role) {
+      case 'ROLE_ADMIN': return 'HR Admin';
+      case 'ROLE_MANAGER': return 'Manager';
+      default: return 'Employee';
+    }
+  }
+
+  function getRoleBadgeClass(role: string): string {
+    switch (role) {
+      case 'ROLE_ADMIN': return 'badge badge-admin';
+      case 'ROLE_MANAGER': return 'badge badge-manager';
+      default: return 'badge badge-employee';
+    }
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      
-      {message && (
-        <div className={`p-4 rounded-xl border flex items-center space-x-2 text-sm ${
-          message.type === 'success' 
-            ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300' 
-            : 'bg-rose-950/40 border-rose-500/20 text-rose-300'
-        }`}>
-          {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span>{message.text}</span>
-        </div>
-      )}
+    <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* Main Profile Info Glass Box */}
-      <div className="glass-panel rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-brand-900/60 to-purple-900/40 border-b border-slate-800 relative">
-          <div className="absolute -bottom-10 left-8">
-            <div className="w-20 h-20 rounded-full bg-slate-800 border-4 border-slate-900 flex items-center justify-center font-bold text-3xl text-white shadow-lg">
-              {user?.fullName?.charAt(0)}
-            </div>
+      {/* Page header */}
+      <div>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          My Profile
+        </h1>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          Manage your identity credentials and verified banking details for payroll settlement
+        </p>
+      </div>
+
+      {/* Identity card */}
+      <div className="surface" style={{ padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+          <div
+            aria-hidden="true"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              backgroundColor: 'var(--brand-subtle)',
+              border: '2px solid var(--brand-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--color-brand-600)',
+              flexShrink: 0,
+            }}
+          >
+            {user?.fullName?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {user?.fullName}
+            </h2>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 2 }}>
+              {user?.position} · {user?.department}
+            </p>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <span className={getRoleBadgeClass(user?.role)}>
+              {getRoleLabel(user?.role)}
+            </span>
           </div>
         </div>
 
-        <div className="pt-14 p-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-850 pb-6">
-            <div>
-              <h2 className="text-xl font-bold text-white">{user?.fullName}</h2>
-              <p className="text-slate-400 text-xs mt-0.5">{user?.position} • {user?.department}</p>
-            </div>
-            <div className="text-xs bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center space-x-2 text-slate-400">
-              <Shield size={14} className="text-brand-400" />
-              <span>Reporting Manager: <span className="text-slate-200 font-semibold">{user?.reportingManager?.fullName || 'CEO'}</span></span>
-            </div>
+        <hr className="divider" />
+
+        {/* Read-only details grid */}
+        <div>
+          <p
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              marginBottom: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Shield size={13} />
+            Employment details
+          </p>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              gap: 16,
+            }}
+          >
+            <InfoField label="Email" value={user?.email} />
+            <InfoField label="Position" value={user?.position} />
+            <InfoField label="Department" value={user?.department} />
+            <InfoField label="Gender" value={user?.gender || '—'} />
+            <InfoField
+              label="Annual salary"
+              value={user?.salary ? `$${user.salary.toLocaleString()}` : '—'}
+            />
+            <InfoField
+              label="Reporting manager"
+              value={user?.reportingManager?.fullName || 'CEO'}
+            />
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            {/* Read-Only Corporate Details */}
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
-                <UserIcon size={14} className="text-brand-400" />
-                <span>Corporate Directory Information</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-slate-900/30 border border-slate-850 p-4 rounded-xl">
-                <div>
-                  <span className="text-slate-500 text-xs">Official Email</span>
-                  <p className="text-sm font-medium text-slate-200 mt-0.5">{user?.email}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-xs">Gender Designation</span>
-                  <p className="text-sm font-medium text-slate-200 mt-0.5">{user?.gender || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-xs">Corporate Position</span>
-                  <p className="text-sm font-medium text-slate-200 mt-0.5">{user?.position}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-xs">Salary Allocation (Annual)</span>
-                  <p className="text-sm font-medium text-slate-200 mt-0.5">${user?.salary?.toLocaleString() || '0.00'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Editable Profile Information */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-                <CreditCard size={14} className="text-brand-400" />
-                <span>Financial & Payout Profile</span>
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-2">
-                    FULL NAME
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-2">
-                    BANK DISBURSEMENT INSTITUTION
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Union Bank"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-brand-500 transition-all"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-2">
-                    DISBURSEMENT ACCOUNT NUMBER
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter Account Number"
-                    value={bankAccountNumber}
-                    onChange={(e) => setBankAccountNumber(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-brand-500 transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-850 flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-6 rounded-xl text-sm flex items-center space-x-2 transition-all shadow-md shadow-brand-600/5 active:scale-95 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    <span>Save Disbursal Profile</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-          </form>
         </div>
       </div>
 
+      {/* Editable section */}
+      <div className="surface" style={{ padding: 20 }}>
+        <p
+          style={{
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <CreditCard size={13} />
+          Banking & payout details
+        </p>
+
+        {message && (
+          <div
+            className={`alert ${message.type === 'success' ? 'alert-success' : 'alert-error'}`}
+            role="alert"
+            style={{ marginBottom: 16 }}
+          >
+            {message.type === 'success'
+              ? <CheckCircle2 size={15} />
+              : <AlertCircle size={15} />
+            }
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+            <div>
+              <label htmlFor="full-name" className="field-label">
+                Full name <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(required)</span>
+              </label>
+              <input
+                id="full-name"
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="field-input"
+                disabled={loading}
+                autoComplete="name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="bank-name" className="field-label">
+                Bank name
+              </label>
+              <input
+                id="bank-name"
+                type="text"
+                required
+                placeholder="e.g. Chase Bank, Wells Fargo"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                className="field-input"
+                disabled={loading}
+                autoComplete="organization"
+              />
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="bank-account" className="field-label">
+                Account number
+              </label>
+              <input
+                id="bank-account"
+                type="text"
+                required
+                placeholder="Enter your account number"
+                value={bankAccountNumber}
+                onChange={(e) => setBankAccountNumber(e.target.value)}
+                className="field-input"
+                disabled={loading}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary"
+            >
+              {loading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : null}
+              Save changes
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
+
+const InfoField: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
+  <div>
+    <dt style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 3 }}>{label}</dt>
+    <dd
+      style={{
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        color: 'var(--text-primary)',
+        margin: 0,
+        wordBreak: 'break-word',
+      }}
+    >
+      {value || '—'}
+    </dd>
+  </div>
+);

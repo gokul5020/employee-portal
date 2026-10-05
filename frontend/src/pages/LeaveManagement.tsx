@@ -1,21 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { leaveApi, attendanceApi, reportApi } from '../services/api';
-import { 
-  Calendar, 
-  Send, 
-  CheckCircle, 
-  XCircle, 
-  FileSpreadsheet, 
-  Clock, 
-  MessageSquare
+import {
+  Calendar,
+  Send,
+  CheckCircle,
+  XCircle,
+  Download,
+  Clock,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { UpcomingHolidays } from '../components/UpcomingHolidays';
 
 interface LeaveManagementProps {
   user: any;
 }
 
+function getStatusBadge(status?: string) {
+  switch (status) {
+    case 'APPROVED': return 'badge badge-approved';
+    case 'REJECTED': return 'badge badge-rejected';
+    default: return 'badge badge-pending';
+  }
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatTime(dateStr: string): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const leaveTypes = [
+  { value: 'ANNUAL', label: 'Annual leave' },
+  { value: 'SICK', label: 'Sick leave' },
+  { value: 'CASUAL', label: 'Casual leave' },
+  { value: 'MATERNITY', label: 'Maternity leave' },
+  { value: 'PATERNITY', label: 'Paternity leave' },
+];
+
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
-  // Leave Form State
+  // Form state
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [leaveType, setLeaveType] = useState('ANNUAL');
@@ -24,15 +55,22 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState(false);
 
-  // Lists State
+  // List state
   const [myLeaves, setMyLeaves] = useState<any[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [loadingLists, setLoadingLists] = useState(true);
 
-  // Review State
+  // Review state
   const [reviewComments, setReviewComments] = useState<{ [key: number]: string }>({});
   const [reviewLoading, setReviewLoading] = useState<{ [key: number]: boolean }>({});
+
+  // Export loading states
+  const [exportLoading, setExportLoading] = useState<{ [key: string]: boolean }>({});
+
+  const { showToast } = useToast();
+
+  const isHrOrManager = user.role === 'ROLE_ADMIN' || user.role === 'ROLE_MANAGER';
 
   const loadData = async () => {
     try {
@@ -42,12 +80,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
       const attendance = await attendanceApi.getHistory();
       setAttendanceHistory(attendance);
 
-      if (user.role === 'ROLE_MANAGER' || user.role === 'ROLE_ADMIN') {
+      if (isHrOrManager) {
         const pending = await leaveApi.getPendingLeaves();
         setPendingRequests(pending);
       }
     } catch (err) {
-      console.error('Failed to load lists', err);
+      console.error('Failed to load data', err);
     } finally {
       setLoadingLists(false);
     }
@@ -59,6 +97,21 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Basic validation
+    if (!startDate || !endDate) {
+      setFormError('Please select both start and end dates.');
+      return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+      setFormError('Start date must be on or before the end date.');
+      return;
+    }
+    if (!reason.trim()) {
+      setFormError('Please enter a reason for the leave.');
+      return;
+    }
+
     setApplyLoading(true);
     setFormError('');
     setFormSuccess(false);
@@ -68,388 +121,453 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
         startDate,
         endDate,
         leaveType,
-        reason
+        reason: reason.trim(),
       });
       setFormSuccess(true);
       setStartDate('');
       setEndDate('');
       setReason('');
-      // Reload leaves list
-      const leaves = await leaveApi.getMyLeaves();
-      setMyLeaves(leaves);
+      showToast('Leave request submitted successfully', 'success');
+      loadData();
     } catch (err: any) {
-      setFormError(err.response?.data || 'Failed to submit leave request');
+      const msg = err.response?.data?.detail || err.response?.data || 'Failed to submit leave request.';
+      setFormError(typeof msg === 'string' ? msg : 'An error occurred.');
     } finally {
       setApplyLoading(false);
     }
   };
 
-  const handleReview = async (id: number, status: string) => {
-    const comments = reviewComments[id] || '';
+  const handleReview = async (id: number, status: 'APPROVED' | 'REJECTED') => {
     setReviewLoading(prev => ({ ...prev, [id]: true }));
     try {
-      await leaveApi.reviewLeave(id, { status, comments });
-      // Reload pending and my leaves
-      const pending = await leaveApi.getPendingLeaves();
-      setPendingRequests(pending);
-      const leaves = await leaveApi.getMyLeaves();
-      setMyLeaves(leaves);
-    } catch (err: any) {
-      alert(err.response?.data || 'Failed to review request');
+      await leaveApi.reviewLeave(id, {
+        status,
+        comments: reviewComments[id] || '',
+      });
+      showToast(`Leave request ${status.toLowerCase()} successfully`, 'success');
+      loadData();
+    } catch {
+      showToast('Failed to update leave request. Please try again.', 'error');
     } finally {
       setReviewLoading(prev => ({ ...prev, [id]: false }));
     }
   };
 
-  const handleCommentChange = (id: number, text: string) => {
-    setReviewComments(prev => ({ ...prev, [id]: text }));
-  };
-
-  // POI Excel Downloads
-  const downloadMyAttendance = async () => {
+  const handleExport = async (key: string, fn: () => Promise<void>, successMsg: string) => {
+    setExportLoading(prev => ({ ...prev, [key]: true }));
     try {
-      await reportApi.downloadAttendanceExcel();
-    } catch (err) {
-      alert('Excel export failed');
+      await fn();
+      showToast(successMsg, 'success');
+    } catch {
+      showToast('Export failed. Please try again.', 'error');
+    } finally {
+      setExportLoading(prev => ({ ...prev, [key]: false }));
     }
   };
-
-  const downloadMyLeaves = async () => {
-    try {
-      await reportApi.downloadLeavesExcel();
-    } catch (err) {
-      alert('Excel export failed');
-    }
-  };
-
-  const downloadAllAttendance = async () => {
-    try {
-      await reportApi.downloadAdminAttendanceExcel();
-    } catch (err) {
-      alert('Excel export failed');
-    }
-  };
-
-  const downloadAllLeaves = async () => {
-    try {
-      await reportApi.downloadAdminLeavesExcel();
-    } catch (err) {
-      alert('Excel export failed');
-    }
-  };
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'APPROVED': return 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/20';
-      case 'REJECTED': return 'bg-rose-950/60 text-rose-400 border border-rose-500/20';
-      default: return 'bg-amber-950/60 text-amber-400 border border-amber-500/20';
-    }
-  };
-
-  const isHrOrManager = user.role === 'ROLE_ADMIN' || user.role === 'ROLE_MANAGER';
 
   return (
-    <div className="space-y-6">
-      
-      {/* Excel Reports Downloads */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-brand-950/10 to-slate-900/60">
+    <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h3 className="text-sm font-bold text-white">HR Spreadsheet Export Console</h3>
-          <p className="text-[11px] text-slate-500">Generated on-demand via Python openpyxl engine</p>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Leave & Attendance
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            Manage leave requests, view calendar holidays, and track attendance history
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2.5">
-          <button
-            onClick={downloadMyLeaves}
-            className="flex items-center space-x-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl text-xs font-semibold text-brand-300 transition-all duration-150"
-          >
-            <FileSpreadsheet size={14} />
-            <span>My Leaves Excel</span>
-          </button>
-          <button
-            onClick={downloadMyAttendance}
-            className="flex items-center space-x-1.5 px-4 py-2 border border-slate-850 hover:border-slate-700 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl text-xs font-semibold text-emerald-300 transition-all duration-150"
-          >
-            <FileSpreadsheet size={14} />
-            <span>My Clocking Excel</span>
-          </button>
+
+        {/* Export buttons */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <ExportButton
+            label="My leaves"
+            loading={!!exportLoading['myLeaves']}
+            onClick={() => handleExport('myLeaves', reportApi.downloadLeavesExcel, 'Leaves exported')}
+          />
+          <ExportButton
+            label="My attendance"
+            loading={!!exportLoading['myAttendance']}
+            onClick={() => handleExport('myAttendance', reportApi.downloadAttendanceExcel, 'Attendance exported')}
+          />
           {isHrOrManager && (
             <>
-              <button
-                onClick={downloadAllLeaves}
-                className="flex items-center space-x-1.5 px-4 py-2 border border-purple-950 bg-purple-950/30 hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-300 transition-all duration-150"
-              >
-                <FileSpreadsheet size={14} />
-                <span>All Leaves Report</span>
-              </button>
-              <button
-                onClick={downloadAllAttendance}
-                className="flex items-center space-x-1.5 px-4 py-2 border border-purple-950 bg-purple-950/30 hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-300 transition-all duration-150"
-              >
-                <FileSpreadsheet size={14} />
-                <span>All Clocking Report</span>
-              </button>
+              <ExportButton
+                label="All leaves"
+                loading={!!exportLoading['allLeaves']}
+                onClick={() => handleExport('allLeaves', reportApi.downloadAdminLeavesExcel, 'All leaves exported')}
+              />
+              <ExportButton
+                label="All attendance"
+                loading={!!exportLoading['allAttendance']}
+                onClick={() => handleExport('allAttendance', reportApi.downloadAdminAttendanceExcel, 'All attendance exported')}
+              />
             </>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Leave application form */}
-        <div className="lg:col-span-1 glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl h-fit">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
-            <Calendar size={16} className="text-brand-400" />
-            <span>File Leave Application</span>
-          </h3>
-
-          {formError && (
-            <div className="bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs p-3 rounded-xl mb-4">
-              {formError}
+      {/* Pending approvals queue (managers/admins) */}
+      {isHrOrManager && (
+        <section>
+          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            Pending approvals
+            {pendingRequests.length > 0 && (
+              <span className="badge badge-pending" style={{ marginLeft: 8, fontSize: '0.75rem' }}>
+                {pendingRequests.length}
+              </span>
+            )}
+          </h2>
+          {loadingLists ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 90 }} />)}
             </div>
-          )}
-
-          {formSuccess && (
-            <div className="bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs p-3 rounded-xl mb-4">
-              Leave application filed successfully!
-            </div>
-          )}
-
-          <form onSubmit={handleApplyLeave} className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 mb-1.5">START DATE</label>
-              <input
-                type="date"
-                required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-brand-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 mb-1.5">END DATE</label>
-              <input
-                type="date"
-                required
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-brand-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 mb-1.5">LEAVE TYPE</label>
-              <select
-                value={leaveType}
-                onChange={(e) => setLeaveType(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="ANNUAL">Annual Leave</option>
-                <option value="SICK">Sick Leave</option>
-                <option value="CASUAL">Casual Leave</option>
-                <option value="MATERNITY">Maternity Leave</option>
-                <option value="PATERNITY">Paternity Leave</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 mb-1.5">REASON & DESCRIPTION</label>
-              <textarea
-                required
-                rows={3}
-                placeholder="Brief reason for your request"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full bg-slate-900/60 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-brand-500 placeholder-slate-655"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={applyLoading}
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md active:scale-95 disabled:opacity-50 transition-all"
-            >
-              {applyLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Send size={12} />
-                  <span>File Request</span>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Leaves history lists */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Pending Direct Report Requests (For Managers) */}
-          {isHrOrManager && (
-            <div className="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
-                <Clock size={16} className="text-purple-400" />
-                <span>Pending Approvals Queue</span>
-              </h3>
-              {loadingLists ? (
-                <div className="text-slate-500 text-xs py-4 text-center">Loading pending approvals...</div>
-              ) : pendingRequests.length > 0 ? (
-                <div className="space-y-4">
-                  {pendingRequests.map((req) => (
-                    <div 
-                      key={req.id} 
-                      className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 rounded-full bg-purple-950 border border-purple-800 flex items-center justify-center font-bold text-xs text-purple-300">
-                            {req.user?.fullName?.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-white">{req.user?.fullName}</p>
-                            <p className="text-[10px] text-slate-500">{req.user?.position} • {req.user?.department}</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-950 text-brand-400 border border-brand-500/10 self-start sm:self-auto">
-                          {req.leaveType}
-                        </span>
+          ) : pendingRequests.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pendingRequests.map((req) => (
+                <div
+                  key={req.id}
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 8,
+                    padding: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--brand-subtle)',
+                          border: '1px solid var(--brand-border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: 'var(--color-brand-600)',
+                          flexShrink: 0,
+                        }}
+                        aria-hidden="true"
+                      >
+                        {req.user?.fullName?.charAt(0)}
                       </div>
-                      
-                      <div className="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-900">
-                        <p className="font-semibold text-[10px] text-slate-500">REASON:</p>
-                        <p className="mt-0.5">{req.reason}</p>
-                      </div>
-
-                      <div className="flex justify-between items-center text-xs text-slate-500">
-                        <span>Duration: <span className="text-slate-350 font-bold">{req.startDate} to {req.endDate}</span></span>
-                      </div>
-
-                      {/* Approval Review Tools */}
-                      <div className="border-t border-slate-850/60 pt-3 flex flex-col sm:flex-row gap-3 items-center">
-                        <div className="relative w-full sm:flex-1">
-                          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
-                            <MessageSquare size={12} />
-                          </span>
-                          <input
-                            type="text"
-                            placeholder="Add manager review comments..."
-                            value={reviewComments[req.id] || ''}
-                            onChange={(e) => handleCommentChange(req.id, e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-brand-500 placeholder-slate-600"
-                          />
-                        </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                          <button
-                            onClick={() => handleReview(req.id, 'APPROVED')}
-                            disabled={reviewLoading[req.id]}
-                            className="flex-1 sm:flex-initial flex items-center justify-center space-x-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm shadow-emerald-600/5 active:scale-95"
-                          >
-                            <CheckCircle size={12} />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            onClick={() => handleReview(req.id, 'REJECTED')}
-                            disabled={reviewLoading[req.id]}
-                            className="flex-1 sm:flex-initial flex items-center justify-center space-x-1 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-sm shadow-rose-600/5 active:scale-95"
-                          >
-                            <XCircle size={12} />
-                            <span>Reject</span>
-                          </button>
-                        </div>
+                      <div>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                          {req.user?.fullName}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                          {req.user?.position} · {req.user?.department}
+                        </p>
                       </div>
                     </div>
-                  ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="badge badge-info">{leaveTypeLabel(req.leaveType)}</span>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                        {formatDate(req.startDate)} – {formatDate(req.endDate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {req.reason && (
+                    <p
+                      style={{
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: 12,
+                        paddingLeft: 12,
+                        borderLeft: '2px solid var(--border-default)',
+                      }}
+                    >
+                      {req.reason}
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="Optional comments for the employee"
+                      value={reviewComments[req.id] || ''}
+                      onChange={(e) => setReviewComments(prev => ({ ...prev, [req.id]: e.target.value }))}
+                      className="field-input"
+                      style={{ flex: '1 1 200px', minWidth: 0, padding: '7px 10px' }}
+                    />
+                    <button
+                      onClick={() => handleReview(req.id, 'APPROVED')}
+                      disabled={reviewLoading[req.id]}
+                      className="btn btn-sm"
+                      style={{
+                        backgroundColor: '#10b981',
+                        borderColor: '#10b981',
+                        color: '#fff',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {reviewLoading[req.id] ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReview(req.id, 'REJECTED')}
+                      disabled={reviewLoading[req.id]}
+                      className="btn btn-sm"
+                      style={{
+                        backgroundColor: '#ef4444',
+                        borderColor: '#ef4444',
+                        color: '#fff',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {reviewLoading[req.id] ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                      Reject
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-slate-500 text-xs py-2">No pending leave requests found.</p>
-              )}
+              ))}
+            </div>
+          ) : (
+            <div className="surface" style={{ padding: '24px', textAlign: 'center' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No pending leave requests.</p>
             </div>
           )}
+        </section>
+      )}
 
-          {/* My Leaves History */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
-              <Calendar size={16} className="text-brand-400" />
-              <span>My Leaves History</span>
-            </h3>
-            {loadingLists ? (
-              <div className="text-slate-500 text-xs py-4 text-center">Loading leaves history...</div>
-            ) : myLeaves.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-850 text-[10px] text-slate-500 font-bold uppercase">
-                      <th className="py-3 px-2">Type</th>
-                      <th className="py-3 px-2">Dates</th>
-                      <th className="py-3 px-2">Reason</th>
-                      <th className="py-3 px-2 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myLeaves.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-900/50 text-xs hover:bg-white/2">
-                        <td className="py-3.5 px-2 font-semibold text-white">{item.leaveType}</td>
-                        <td className="py-3.5 px-2 text-slate-400">{item.startDate} to {item.endDate}</td>
-                        <td className="py-3.5 px-2 text-slate-400 truncate max-w-[150px]" title={item.reason}>{item.reason}</td>
-                        <td className="py-3.5 px-2 text-right">
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${getStatusBadge(item.status)}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* Two-column: Request form + Upcoming Holidays */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start' }}>
+
+        {/* Leave application form */}
+        <div>
+          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            Request leave
+          </h2>
+          <div className="surface" style={{ padding: 20 }}>
+            {formError && (
+              <div className="alert alert-error" style={{ marginBottom: 16 }}>
+                <AlertCircle size={15} />
+                {formError}
               </div>
-            ) : (
-              <p className="text-slate-500 text-xs py-2">No leave applications filed yet.</p>
             )}
-          </div>
-
-          {/* My Attendance / Check-In Log */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
-              <Clock size={16} className="text-emerald-400" />
-              <span>My Clocking History Logs</span>
-            </h3>
-            {loadingLists ? (
-              <div className="text-slate-500 text-xs py-4 text-center">Loading clocking history...</div>
-            ) : attendanceHistory.length > 0 ? (
-              <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-850 text-[10px] text-slate-500 font-bold uppercase sticky top-0 bg-[#0c1220]">
-                      <th className="py-3 px-2">Date</th>
-                      <th className="py-3 px-2">Check In</th>
-                      <th className="py-3 px-2">Check Out</th>
-                      <th className="py-3 px-2 text-right">Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceHistory.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-900/50 text-xs hover:bg-white/2">
-                        <td className="py-3 px-2 text-slate-200">{item.date}</td>
-                        <td className="py-3 px-2 text-slate-400">
-                          {new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </td>
-                        <td className="py-3 px-2 text-slate-400">
-                          {item.checkOutTime 
-                            ? new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
-                            : '-'}
-                        </td>
-                        <td className="py-3 px-2 text-right font-bold text-white">
-                          {item.hoursWorked !== null ? `${item.hoursWorked} hrs` : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {formSuccess && (
+              <div className="alert alert-success" style={{ marginBottom: 16 }}>
+                <CheckCircle size={15} />
+                Leave request submitted successfully.
               </div>
-            ) : (
-              <p className="text-slate-500 text-xs py-2">No attendance clockings checked yet.</p>
             )}
-          </div>
 
+            <form onSubmit={handleApplyLeave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label htmlFor="leave-type" className="field-label">Leave type</label>
+                <select
+                  id="leave-type"
+                  value={leaveType}
+                  onChange={(e) => setLeaveType(e.target.value)}
+                  className="field-input"
+                >
+                  {leaveTypes.map(lt => (
+                    <option key={lt.value} value={lt.value}>{lt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label htmlFor="start-date" className="field-label">Start date</label>
+                  <input
+                    id="start-date"
+                    type="date"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="field-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="end-date" className="field-label">End date</label>
+                  <input
+                    id="end-date"
+                    type="date"
+                    required
+                    value={endDate}
+                    min={startDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="field-input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="reason" className="field-label">Reason</label>
+                <textarea
+                  id="reason"
+                  required
+                  rows={3}
+                  placeholder="Briefly describe the reason for your leave"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="field-input"
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={applyLoading}
+                className="btn btn-primary"
+              >
+                {applyLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+                Submit request
+              </button>
+            </form>
+          </div>
         </div>
 
+        {/* New Feature: Upcoming Holidays Widget */}
+        <div>
+          <UpcomingHolidays />
+        </div>
       </div>
 
+      {/* My leave history */}
+      <div>
+        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+          My leave history
+        </h2>
+        <div className="surface" style={{ overflowX: 'auto' }}>
+          {loadingLists ? (
+            <div style={{ padding: 20 }}>
+              <div className="skeleton" style={{ height: 120 }} />
+            </div>
+          ) : myLeaves.length > 0 ? (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Period</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myLeaves.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                      {leaveTypeLabel(item.leaveType)}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      {formatDate(item.startDate)}
+                      {item.startDate !== item.endDate && (
+                        <span style={{ color: 'var(--text-muted)' }}> – {formatDate(item.endDate)}</span>
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        maxWidth: 240,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                      }}
+                      title={item.reason}
+                    >
+                      {item.reason}
+                    </td>
+                    <td>
+                      <span className={getStatusBadge(item.status)}>
+                        {item.status?.charAt(0) + item.status?.slice(1).toLowerCase()}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <Calendar size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+              <p className="empty-state-title">No leave requests yet</p>
+              <p className="empty-state-desc">Submit your first request using the form above.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Attendance history */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Attendance history
+          </h2>
+        </div>
+        <div className="surface" style={{ overflowX: 'auto' }}>
+          {loadingLists ? (
+            <div style={{ padding: 20 }}>
+              <div className="skeleton" style={{ height: 160 }} />
+            </div>
+          ) : attendanceHistory.length > 0 ? (
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Check in</th>
+                    <th>Check out</th>
+                    <th style={{ textAlign: 'right' }}>Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendanceHistory.map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {formatDate(item.date)}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{formatTime(item.checkInTime)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {item.checkOutTime ? (
+                          <span style={{ color: 'var(--text-secondary)' }}>{formatTime(item.checkOutTime)}</span>
+                        ) : (
+                          <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>In progress</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {item.hoursWorked != null ? `${item.hoursWorked}h` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Clock size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+              <p className="empty-state-title">No attendance records</p>
+              <p className="empty-state-desc">Use the clock-in button on the dashboard to start tracking.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 };
+
+function leaveTypeLabel(type: string): string {
+  return leaveTypes.find(lt => lt.value === type)?.label ?? type;
+}
+
+const ExportButton: React.FC<{ label: string; loading: boolean; onClick: () => void }> = ({ label, loading, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={loading}
+    className="btn btn-secondary btn-sm"
+  >
+    {loading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+    {label}
+  </button>
+);

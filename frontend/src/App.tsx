@@ -7,6 +7,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { LeaveManagement } from './pages/LeaveManagement';
 import { Payroll } from './pages/Payroll';
+import { ToastProvider } from './components/Toast';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -17,8 +19,7 @@ function App() {
     try {
       const currentUser = await authApi.me();
       setUser(currentUser);
-    } catch (err) {
-      console.error('Failed to fetch user context', err);
+    } catch {
       handleLogout();
     } finally {
       setLoading(false);
@@ -51,28 +52,40 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080b11] text-gray-200">
-        <div className="w-8 h-8 rounded-full border-4 border-slate-700 border-t-brand-500 animate-spin"></div>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-app)',
+        }}
+      >
+        <div className="spinner spinner-brand" style={{ width: 28, height: 28 }} />
       </div>
     );
   }
 
-  if (!token || !user) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
-
   return (
-    <Router>
-      <Layout user={user} onLogout={handleLogout}>
-        <Routes>
-          <Route path="/" element={<Dashboard user={user} />} />
-          <Route path="/profile" element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />} />
-          <Route path="/leaves" element={<LeaveManagement user={user} />} />
-          <Route path="/payroll" element={<Payroll user={user} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
-    </Router>
+    <ThemeProvider>
+      <ToastProvider>
+        {!token || !user ? (
+          <Login onLoginSuccess={handleLoginSuccess} />
+        ) : (
+          <Router>
+            <Layout user={user} onLogout={handleLogout}>
+              <Routes>
+                <Route path="/" element={<Dashboard user={user} />} />
+                <Route path="/profile" element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />} />
+                <Route path="/leaves" element={<LeaveManagement user={user} />} />
+                <Route path="/payroll" element={<Payroll user={user} />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
+          </Router>
+        )}
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
 
