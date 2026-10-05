@@ -85,7 +85,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         showToast('Clocked in successfully', 'success');
       }
     } catch (err: any) {
-      const msg = err.response?.data || 'Clock action failed. Please try again.';
+      const raw = err.response?.data;
+      const msg = typeof raw === 'string' ? raw : raw?.detail || 'Clock action failed. Please try again.';
       setClockError(typeof msg === 'string' ? msg : 'An error occurred.');
     } finally {
       setClockLoading(false);

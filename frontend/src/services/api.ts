@@ -131,11 +131,11 @@ export const attendanceApi = {
     return response.data;
   },
   checkIn: async () => {
-    const response = await api.post('/attendance/checkin');
+    const response = await api.post('/attendance/check-in');
     return response.data;
   },
   checkOut: async () => {
-    const response = await api.post('/attendance/checkout');
+    const response = await api.post('/attendance/check-out');
     return response.data;
   },
   getHistory: async () => {
