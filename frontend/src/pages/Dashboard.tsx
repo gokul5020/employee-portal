@@ -45,10 +45,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     };
   }, []);
 
+  const isCheckedIn = Boolean(
+    attendance &&
+    attendance.id !== 0 &&
+    !attendance.checkOutTime &&
+    attendance.status === 'PRESENT'
+  );
+
   // Live elapsed timer for active check-in
   useEffect(() => {
-    if (attendance && attendance.checkInTime && !attendance.checkOutTime) {
-      const checkIn = new Date(attendance.checkInTime).getTime();
+    const checkInTimestamp = attendance?.checkInTime || attendance?.check_in_time;
+    if (isCheckedIn && checkInTimestamp) {
+      const checkIn = new Date(checkInTimestamp).getTime();
 
       const update = () => {
         const diff = Date.now() - checkIn;
@@ -69,13 +77,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       }
       setTimeString('00:00:00');
     }
-  }, [attendance]);
+  }, [isCheckedIn, attendance]);
 
   const handleClockToggle = async () => {
     setClockLoading(true);
     setClockError('');
     try {
-      if (attendance && !attendance.checkOutTime) {
+      if (isCheckedIn) {
         const updated = await attendanceApi.checkOut();
         setAttendance(updated);
         showToast('Clocked out successfully', 'success');
@@ -92,8 +100,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       setClockLoading(false);
     }
   };
-
-  const isCheckedIn = attendance && !attendance.checkOutTime;
   const monthlyPay = user?.salary ? (user.salary / 12) : 0;
 
   const today = new Date().toLocaleDateString('en-GB', {

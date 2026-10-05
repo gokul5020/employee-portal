@@ -77,7 +77,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
   const handleClockToggle = async () => {
     try {
       const status = await attendanceApi.getStatus();
-      const isCheckedIn = status && status.checkInTime && !status.checkOutTime;
+      const isCheckedIn = Boolean(status && status.id !== 0 && !status.checkOutTime && status.status === 'PRESENT');
 
       if (!isCheckedIn) {
         await attendanceApi.checkIn();
