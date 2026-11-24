@@ -9,8 +9,14 @@ services:
     envVars:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./employee_portal.db
-      - key: JWT_SECRET_KEY
-        value: supersecretkeyforjwttokengenerationwhichisverylongandsecure
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_API_URL
+        value: https://api.openai.com/v1/chat/completions
+      - key: AI_MODEL
+        value: gpt-4o-mini
 
   # 2. React Frontend Web Service (Web Service - Free Tier)
   - type: web

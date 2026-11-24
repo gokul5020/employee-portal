@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { attendanceApi } from '../services/api';
-import { Play, Square, Clock, DollarSign, ChevronRight, User as UserIcon, CalendarDays, Loader2, AlertCircle } from 'lucide-react';
+import { Play, Square, Clock, DollarSign, ChevronRight, User as UserIcon, CalendarDays, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { DailyPlanner } from '../components/DailyPlanner';
@@ -264,6 +264,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               icon={<DollarSign size={15} />}
               label="Download payslip"
               onClick={() => navigate('/payroll')}
+            />
+            <QuickLink
+              icon={<Sparkles size={15} />}
+              label="Ask the HR assistant"
+              onClick={() => navigate('/assistant')}
             />
           </div>
         </div>

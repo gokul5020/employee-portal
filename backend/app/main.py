@@ -6,7 +6,7 @@ from .config import settings
 from .database import async_engine, AsyncSessionLocal, Base
 from .models import User, Attendance, LeaveRequest, Payslip, TrainingCourse
 from .auth import get_password_hash
-from .routes import auth, profile, attendance, leave, payroll
+from .routes import auth, profile, attendance, leave, payroll, assistant
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -25,6 +25,7 @@ app.include_router(profile.router)
 app.include_router(attendance.router)
 app.include_router(leave.router)
 app.include_router(payroll.router)
+app.include_router(assistant.router)
 
 @app.get("/")
 def read_root():

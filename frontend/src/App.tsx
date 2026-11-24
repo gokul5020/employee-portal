@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { LeaveManagement } from './pages/LeaveManagement';
 import { Payroll } from './pages/Payroll';
+import { Assistant } from './pages/Assistant';
 import { ToastProvider } from './components/Toast';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -79,6 +80,7 @@ function App() {
                 <Route path="/profile" element={<Profile user={user} onProfileUpdate={handleProfileUpdate} />} />
                 <Route path="/leaves" element={<LeaveManagement user={user} />} />
                 <Route path="/payroll" element={<Payroll user={user} />} />
+                <Route path="/assistant" element={<Assistant />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>

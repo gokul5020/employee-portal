@@ -69,6 +69,14 @@ export interface Payslip {
   generatedAt: string;
 }
 
+export interface AssistantAnswer {
+  answer: string;
+}
+
+export interface AssistantStatus {
+  enabled: boolean;
+}
+
 export interface SdgStats {
   trainingCompletedHours: number;
   totalCourses: number;
@@ -140,6 +148,17 @@ export const attendanceApi = {
   },
   getHistory: async () => {
     const response = await api.get('/attendance/history');
+    return response.data;
+  },
+};
+
+export const assistantApi = {
+  getStatus: async (): Promise<AssistantStatus> => {
+    const response = await api.get<AssistantStatus>('/assistant/status');
+    return response.data;
+  },
+  ask: async (question: string): Promise<AssistantAnswer> => {
+    const response = await api.post<AssistantAnswer>('/assistant/ask', { question });
     return response.data;
   },
 };

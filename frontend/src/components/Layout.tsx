@@ -10,6 +10,7 @@ import {
   X,
   Search,
   Megaphone,
+  Sparkles,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { CommandPalette } from './CommandPalette';
@@ -26,6 +27,7 @@ const menuItems = [
   { name: 'My Profile', path: '/profile', icon: UserIcon },
   { name: 'Leave & Attendance', path: '/leaves', icon: CalendarDays },
   { name: 'Payroll', path: '/payroll', icon: DollarSign },
+  { name: 'HR Assistant', path: '/assistant', icon: Sparkles },
 ];
 
 function getRoleBadgeClass(role: string): string {

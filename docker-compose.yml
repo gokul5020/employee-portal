@@ -34,6 +34,9 @@ services:
       - DB_NAME=employee_portal
       - REDIS_HOST=cache
       - REDIS_PORT=6379
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_API_URL=${AI_API_URL:-https://api.openai.com/v1/chat/completions}
+      - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
     depends_on:
       - db
       - cache

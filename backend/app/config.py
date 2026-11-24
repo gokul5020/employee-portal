@@ -34,4 +34,9 @@ class Settings:
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 
+    # Optional OpenAI-compatible provider configuration for the HR assistant
+    AI_API_KEY: str = os.getenv("AI_API_KEY", "")
+    AI_API_URL: str = os.getenv("AI_API_URL", "https://api.openai.com/v1/chat/completions")
+    AI_MODEL: str = os.getenv("AI_MODEL", "gpt-4o-mini")
+
 settings = Settings()
