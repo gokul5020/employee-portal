@@ -77,6 +77,146 @@ export interface AssistantStatus {
   enabled: boolean;
 }
 
+export interface AttendanceInsight {
+  enabled: boolean;
+  summary?: string;
+  strengths?: string[];
+  suggestions?: string[];
+  productivity_score?: number;
+  risk_flags?: string[];
+  weekly_pattern_insight?: string;
+  burnout_risk?: string;
+  optimal_schedule?: {
+    recommended_start_time: string;
+    recommended_end_time: string;
+    peak_productivity_window?: string;
+    break_schedule?: string[];
+    reasoning: string;
+    weekly_hours_target?: number;
+  };
+  forecast?: {
+    trend: string;
+    forecast_message: string;
+    predicted_weekly_hours: number;
+    alerts: string[];
+    recommended_actions: string[];
+  };
+}
+
+export interface LeaveSuggestion {
+  enabled: boolean;
+  suggested_periods?: Array<{
+    start_date: string;
+    end_date: string;
+    duration_days: number;
+    reason: string;
+    type: string;
+  }>;
+  tips?: string[];
+  work_life_balance_score?: number;
+  recommendation_summary?: string;
+}
+
+export interface LeaveAnalysis {
+  enabled: boolean;
+  risk_level?: string;
+  considerations?: string[];
+  recommendation?: string;
+  reasoning?: string;
+  approval_confidence?: number;
+  suggested_manager_response?: string;
+}
+
+export interface LeaveDraft {
+  enabled: boolean;
+  draft?: string;
+  tone?: string;
+  alternative_drafts?: string[];
+}
+
+export interface PayrollInsight {
+  enabled: boolean;
+  insights?: string[];
+  savings_tips?: string[];
+  budget_recommendation?: string;
+  financial_health_score?: number;
+  estimated_monthly_savings_potential?: number;
+  tax_optimization_tips?: string[];
+  market_comparison?: {
+    market_range: { min: number; mid: number; max: number };
+    competitiveness: string;
+    percentile_estimate: number;
+    growth_potential: string;
+    skills_to_develop: string[];
+    negotiation_tips: string[];
+    next_role_suggestions: string[];
+  };
+  forecast?: {
+    projected_annual_net: number;
+    projected_annual_gross: number;
+    savings_goal_suggestion: number;
+    investment_tip: string;
+    forecast_summary: string;
+  };
+}
+
+export interface PerformanceInsight {
+  enabled: boolean;
+  overall_score?: number;
+  grade?: string;
+  strengths?: string[];
+  areas_for_improvement?: string[];
+  career_path_suggestions?: string[];
+  next_steps?: string[];
+  promotion_readiness?: string;
+  recognition_message?: string;
+  recommended_courses?: Array<{
+    title: string;
+    category: string;
+    duration_hours: number;
+    priority: string;
+    relevance_reason: string;
+    skill_gap_addressed: string;
+  }>;
+  learning_path_summary?: string;
+  estimated_completion_weeks?: number;
+  quarterly_goals?: Array<{
+    goal: string;
+    category: string;
+    measurable_outcome: string;
+    timeline: string;
+  }>;
+  focus_area?: string;
+  coaching_tip?: string;
+}
+
+export interface DailyBriefing {
+  enabled: boolean;
+  greeting?: string;
+  priorities?: string[];
+  reminders?: string[];
+  motivational_tip?: string;
+  focus_suggestion?: string;
+  wellness?: {
+    stress_level: string;
+    burnout_risk_score: number;
+    wellness_message: string;
+    recommended_actions: string[];
+    leave_recommendation: string;
+  };
+}
+
+export interface SmartRecommendations {
+  enabled: boolean;
+  timestamp: string;
+  modules: {
+    attendance?: { alert: string; message: string; suggestion: string };
+    leave?: { pending_count: number; message: string };
+    training?: { message: string; suggestion: string };
+    payroll?: { alert: string; message: string };
+  };
+}
+
 export interface SdgStats {
   trainingCompletedHours: number;
   totalCourses: number;
@@ -159,6 +299,41 @@ export const assistantApi = {
   },
   ask: async (question: string): Promise<AssistantAnswer> => {
     const response = await api.post<AssistantAnswer>('/assistant/ask', { question });
+    return response.data;
+  },
+};
+
+export const aiInsightsApi = {
+  getAttendanceInsights: async (): Promise<AttendanceInsight> => {
+    const response = await api.get<AttendanceInsight>('/ai/attendance/insights');
+    return response.data;
+  },
+  getLeaveSuggestions: async (): Promise<LeaveSuggestion> => {
+    const response = await api.get<LeaveSuggestion>('/ai/leave/suggestions');
+    return response.data;
+  },
+  analyzeLeaveRequest: async (leaveId: number): Promise<LeaveAnalysis> => {
+    const response = await api.get<LeaveAnalysis>(`/ai/leave/analyze/${leaveId}`);
+    return response.data;
+  },
+  draftLeaveReason: async (data: { leave_type: string; start_date: string; end_date: string }): Promise<LeaveDraft> => {
+    const response = await api.post<LeaveDraft>('/ai/leave/draft', data);
+    return response.data;
+  },
+  getPayrollInsights: async (): Promise<PayrollInsight> => {
+    const response = await api.get<PayrollInsight>('/ai/payroll/insights');
+    return response.data;
+  },
+  getPerformanceSummary: async (): Promise<PerformanceInsight> => {
+    const response = await api.get<PerformanceInsight>('/ai/performance/summary');
+    return response.data;
+  },
+  getDailyBriefing: async (): Promise<DailyBriefing> => {
+    const response = await api.get<DailyBriefing>('/ai/daily-briefing');
+    return response.data;
+  },
+  getSmartRecommendations: async (): Promise<SmartRecommendations> => {
+    const response = await api.get<SmartRecommendations>('/ai/smart-recommendations');
     return response.data;
   },
 };

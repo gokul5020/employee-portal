@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from ..auth import get_current_user
 from ..config import settings
-from ..models import User
+from ..services.ai_service import AssistantAIService
 
 router = APIRouter(prefix="/api/assistant", tags=["AI Assistant"])
 
@@ -27,13 +27,38 @@ class AssistantStatus(BaseModel):
     enabled: bool
 
 
-@router.get("/status", response_model=AssistantStatus)
-async def get_assistant_status(current_user: User = Depends(get_current_user)):
-    return {"enabled": bool(settings.AI_API_KEY)}
+def _request_answer(
+    question: str,
+    conversation_history: list = None,
+    user_context: dict = None,
+) -> str:
+    """Build and send request to the AI provider with optional context"""
+    context_parts = []
 
+    if user_context:
+        context_parts.append(
+            f"\n--- Employee Context ---\n"
+            f"Department: {user_context.get('department', 'General')}\n"
+            f"Position: {user_context.get('position', 'Employee')}\n"
+            f"Role: {user_context.get('role', 'employee')}\n"
+            "Use this context to personalize the answer, but keep it professional "
+            "and do not disclose sensitive data. Do not claim to know the employer's "
+            "specific policies; always advise checking official handbooks."
+        )
+        context_parts.append(
+            f"\n--- Conversation History ---\n"
+        )
+        # Include last 2 turns
+        if conversation_history:
+            for msg in conversation_history[-2:]:
+                ctx_role = "You" if msg["role"] == "user" else "Assistant"
+                context_parts.append(f"{ctx_role}: {msg['content']}")
 
-def _request_answer(question: str) -> str:
-    payload = json.dumps({
+    full_question = question
+    if context_parts:
+        full_question = question + "".join(context_parts)
+
+    payload_data = {
         "model": settings.AI_MODEL,
         "messages": [
             {
@@ -44,14 +69,18 @@ def _request_answer(question: str) -> str:
                     "encourage the employee to check their handbook or contact HR for "
                     "official answers. Do not make employment, legal, medical, payroll, "
                     "or benefits decisions. Never ask for passwords, bank details, or "
-                    "other sensitive personal information."
+                    "other sensitive personal information. Personalize responses using "
+                    "provided context (department, position, role). Format with bullet "
+                    "points or numbered steps when helpful."
                 ),
             },
-            {"role": "user", "content": question},
+            {"role": "user", "content": full_question},
         ],
         "temperature": 0.3,
-        "max_tokens": 700,
-    }).encode("utf-8")
+        "max_tokens": 900,
+    }
+
+    payload = json.dumps(payload_data).encode("utf-8")
     request = Request(
         settings.AI_API_URL,
         data=payload,
@@ -108,10 +137,16 @@ def _request_answer(question: str) -> str:
     return answer.strip()
 
 
+@router.get("/status", response_model=AssistantStatus)
+async def get_assistant_status(current_user: User = Depends(get_current_user)):
+    return {"enabled": bool(settings.AI_API_KEY)}
+
+
 @router.post("/ask", response_model=AssistantAnswer)
 async def ask_assistant(
     request: AssistantQuestion,
     current_user: User = Depends(get_current_user),
+    # We pass user_context as a dict derived from the current_user
 ):
     if not settings.AI_API_KEY:
         raise HTTPException(
@@ -126,5 +161,21 @@ async def ask_assistant(
             detail="Enter a question before sending.",
         )
 
-    answer = await asyncio.to_thread(_request_answer, question)
+    user_context = {
+        "department": current_user.department,
+        "position": current_user.position,
+        "role": current_user.role,
+    }
+
+    # Ask with context and conversation history managed in frontend
+    conversation_history: list = getattr(
+        request, "conversation_history", []
+    )  # will be passed if we add it
+
+    answer = await asyncio.to_thread(
+        _request_answer,
+        question,
+        conversation_history,
+        user_context,
+    )
     return {"answer": answer}
