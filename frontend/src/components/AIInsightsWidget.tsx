@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { aiInsightsApi } from '../services/api';
-import { TrendingUp, AlertTriangle, Lightbulb, Zap, Brain, Sparkles, Clock, Calendar, Heart } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Lightbulb, Zap, Activity, Clock, Calendar, Heart } from 'lucide-react';
 
 interface AttendanceInsight {
   enabled: boolean;
@@ -38,8 +38,8 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
     try {
       const data = await aiInsightsApi.getAttendanceInsights();
       setInsights(data);
-    } catch (err) {
-      setError("Could not retrieve AI insights");
+    } catch {
+      setError("Could not retrieve attendance insights");
     } finally {
       setLoading(false);
     }
@@ -49,46 +49,46 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
     fetchInsights();
   }, [user]);
 
+  if (loading) {
+    return (
+      <div className="ai-insights-widget">
+        <h3 className="widget-title">
+          <Activity className="icon" size={18} />
+          Attendance summary
+        </h3>
+        <div className="widget-content loading">
+          <div className="spinner" />
+          <p>Loading your attendance summary…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="ai-insights-widget">
+        <div className="alert alert-error" role="alert">{error}</div>
+      </div>
+    );
+  }
+
   if (!insights || !insights.enabled) {
     return (
       <div className="ai-insights-widget">
         <h3 className="widget-title">
-          <Sparkles className="icon" size={18} />
-          AI-Powered Insights
+          <Activity className="icon" size={18} />
+          Attendance summary
         </h3>
         <div className="widget-content">
           <div className="ai-disabled-state">
-            <Brain size={32} className="ai-icon" />
-            <p>AI insights are not configured or unavailable.</p>
-            <small>Contact your administrator to enable AI features.</small>
+            <Activity size={32} className="ai-icon" />
+            <p>Attendance insights are not available right now.</p>
+            <small>Please try again later or contact your administrator.</small>
           </div>
         </div>
       </div>
     );
   }
-
-  if (loading) {
-    return (
-      <div className="ai-insights-widget">
-        <h3 className="widget-title">
-          <Sparkles className="icon" size={18} />
-          AI-Powered Insights
-        </h3>
-        <div className="widget-content loading">
-          <div className="spinner" />
-          <p>Analyzing your patterns with AI...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'high': return '#ef4444';
-      case 'medium': return '#f59e0b';
-      default: return '#10b981';
-    }
-  };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -102,8 +102,8 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
     <div className="ai-insights-widget">
       <div className="widget-header">
         <h3 className="widget-title">
-          <Sparkles className="icon" size={18} />
-          AI-Powered Insights
+          <Activity className="icon" size={18} />
+          Attendance summary
         </h3>
         <button
           className="expand-btn"
@@ -195,7 +195,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
                     <Zap size={20} />
                   </div>
                   <div className="insight-meta">
-                    <p className="insight-label">AI Suggestions</p>
+                    <p className="insight-label">Suggestions</p>
                   </div>
                 </div>
                 <ul className="insight-list">
@@ -234,7 +234,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
               <div className="insight-card forecast-card">
                 <div className="insight-header">
                   <div className="insight-icon forecast">
-                    <getTrendIcon(insights.forecast.trend) />
+                    {getTrendIcon(insights.forecast.trend)}
                   </div>
                   <div className="insight-meta">
                     <p className="insight-label">Weekly Forecast</p>
@@ -268,7 +268,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ user }) => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .ai-insights-widget {
           background: var(--bg-surface);
           border: 1px solid var(--border-default);

@@ -35,8 +35,13 @@ class Settings:
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 
     # Optional OpenAI-compatible provider configuration for the HR assistant
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "openai").lower()
     AI_API_KEY: str = os.getenv("AI_API_KEY", "")
     AI_API_URL: str = os.getenv("AI_API_URL", "https://api.openai.com/v1/chat/completions")
     AI_MODEL: str = os.getenv("AI_MODEL", "gpt-4o-mini")
+    ANTHROPIC_BASE_URL: str = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+    ANTHROPIC_AUTH_TOKEN: str = os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
 
 settings = Settings()

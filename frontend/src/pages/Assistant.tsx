@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bot, Loader2, RotateCcw, Send, ShieldAlert, Sparkles, UserRound } from 'lucide-react';
+import { AlertCircle, Bot, Loader2, MessageCircle, RotateCcw, Send, ShieldAlert, UserRound } from 'lucide-react';
 import { assistantApi } from '../services/api';
 
 interface Message {
@@ -67,9 +67,9 @@ export function Assistant() {
   };
 
   return (
-    <div className="assistant-page">
+    <div className="page-stack assistant-page">
       <header className="assistant-heading">
-        <div className="assistant-heading-icon"><Sparkles size={21} /></div>
+        <div className="assistant-heading-icon"><MessageCircle size={21} /></div>
         <div>
           <p className="assistant-eyebrow">EMPLOYEE SELF-SERVICE</p>
           <h1>HR assistant</h1>
@@ -114,7 +114,7 @@ export function Assistant() {
             <div className="assistant-messages" aria-live="polite" aria-relevant="additions text">
               {messages.length === 0 ? (
                 <div className="assistant-welcome">
-                  <div className="assistant-welcome-icon"><Sparkles size={20} /></div>
+                  <div className="assistant-welcome-icon"><MessageCircle size={20} /></div>
                   <h2>How can I help?</h2>
                   <p>Ask for general guidance about workplace conversations, leave requests, or professional development.</p>
                   <div className="assistant-suggestions">
@@ -193,7 +193,7 @@ export function Assistant() {
       <aside className="assistant-disclaimer">
         <ShieldAlert size={16} />
         <p>
-          <strong>Protect your privacy.</strong> Each question is sent to your organization’s configured AI provider and is not saved by this portal.
+          <strong>Protect your privacy.</strong> Each question and limited work context (department, position, and role) are sent to your organization’s configured AI provider and are not saved by this portal.
           Do not include names, account details, health information, or other sensitive or identifying information.
           Responses are general guidance, may be inaccurate, and are not official company policy; check your handbook or contact HR.
         </p>

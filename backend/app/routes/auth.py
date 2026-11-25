@@ -10,7 +10,8 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=TokenResponse)
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).filter(User.email == credentials.email))
+    email = str(credentials.email).strip().lower()
+    result = await db.execute(select(User).filter(User.email == email))
     user = result.scalars().first()
     
     if not user or not verify_password(credentials.password, user.password):

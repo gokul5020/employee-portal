@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { aiInsightsApi } from '../services/api';
-import { AttendanceInsight, LeaveSuggestion, LeaveAnalysis, LeaveDraft, PayrollInsight, PerformanceInsight, DailyBriefing, SmartRecommendations } from '../services/api';
-import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Alert } from '../components/Alert';
+import type { AttendanceInsight, LeaveSuggestion, LeaveDraft, PayrollInsight, PerformanceInsight, DailyBriefing, WorkSummary } from '../services/api';
 import { AIInsightsWidget } from '../components/AIInsightsWidget';
+import { RefreshCw } from 'lucide-react';
 
 interface AIInsightsPageProps {
   user: any;
@@ -12,7 +11,23 @@ interface AIInsightsPageProps {
 export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
   const [tabs, setTabs] = useState<'attendance' | 'leave' | 'payroll' | 'performance' | 'briefing'>('attendance');
   const [overallLoading, setOverallLoading] = useState(true);
-  const [errors: Record<string, string>] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [workSummary, setWorkSummary] = useState<WorkSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+
+  const fetchWorkSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    setSummaryError('');
+    try {
+      setWorkSummary(await aiInsightsApi.getWorkSummary());
+    } catch {
+      setSummaryError('Could not load your work records. Check your connection and refresh.');
+    } finally {
+      setSummaryLoading(false);
+      setOverallLoading(false);
+    }
+  }, []);
 
   // Attendance
   const [attendanceInsights, setAttendanceInsights] = useState<AttendanceInsight | null>(null);
@@ -20,39 +35,49 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
     try {
       const data = await aiInsightsApi.getAttendanceInsights();
       setAttendanceInsights(data);
-    } catch (err) {
-      errors.attendance = "Could not retrieve attendance insights";
+    } catch {
+      setErrors(prev => ({ ...prev, attendance: "Could not retrieve attendance insights" }));
     }
   };
 
   // Leave
   const [leaveSuggestions, setLeaveSuggestions] = useState<LeaveSuggestion | null>(null);
-  const [leaveAnalysis, setLeaveAnalysis] = useState<LeaveAnalysis | null>(null);
   const [leaveDraft, setLeaveDraft] = useState<LeaveDraft | null>(null);
+  const [draftLeaveType, setDraftLeaveType] = useState('ANNUAL');
+  const [draftDuration, setDraftDuration] = useState(1);
+  const [draftLoading, setDraftLoading] = useState(false);
   const fetchLeave = async () => {
     try {
       const suggestions = await aiInsightsApi.getLeaveSuggestions();
       setLeaveSuggestions(suggestions);
-    } catch (err) {
-      errors.leave = "Could not retrieve leave suggestions";
+    } catch {
+      setErrors(prev => ({ ...prev, leave: "Could not retrieve leave suggestions" }));
     }
   };
 
-  const fetchLeaveAnalysis = async (leaveId: number) => {
-    try {
-      const analysis = await aiInsightsApi.analyzeLeaveRequest(leaveId);
-      setLeaveAnalysis(analysis);
-    } catch (err) {
-      errors.leave = "Could not analyse leave request";
-    }
-  };
+  const fetchLeaveDraft = async () => {
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + Math.max(1, draftDuration) - 1);
+    const toDateInput = (date: Date) => {
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    };
 
-  const fetchLeaveDraft = async (leaveType: string, startDate: string, endDate: string) => {
+    setDraftLoading(true);
+    setErrors(prev => ({ ...prev, leave: '' }));
     try {
-      const draft = await aiInsightsApi.draftLeaveReason({ leave_type: leaveType, start_date: startDate, end_date: endDate });
+      const draft = await aiInsightsApi.draftLeaveReason({
+        leave_type: draftLeaveType,
+        start_date: toDateInput(startDate),
+        end_date: toDateInput(endDate),
+      });
       setLeaveDraft(draft);
-    } catch (err) {
-      errors.leave = "Could not draft leave reason";
+    } catch {
+      setErrors(prev => ({ ...prev, leave: "Could not draft leave reason" }));
+    } finally {
+      setDraftLoading(false);
     }
   };
 
@@ -62,8 +87,8 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
     try {
       const data = await aiInsightsApi.getPayrollInsights();
       setPayrollInsights(data);
-    } catch (err) {
-      errors.payroll = "Could not retrieve payroll insights";
+    } catch {
+      setErrors(prev => ({ ...prev, payroll: "Could not retrieve payroll insights" }));
     }
   };
 
@@ -73,8 +98,8 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
     try {
       const data = await aiInsightsApi.getPerformanceSummary();
       setPerformanceInsights(data);
-    } catch (err) {
-      errors.performance = "Could not retrieve performance summary";
+    } catch {
+      setErrors(prev => ({ ...prev, performance: "Could not retrieve performance summary" }));
     }
   };
 
@@ -84,33 +109,24 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
     try {
       const data = await aiInsightsApi.getDailyBriefing();
       setDailyBriefing(data);
-    } catch (err) {
-      errors.briefing = "Could not retrieve daily briefing";
+    } catch {
+      setErrors(prev => ({ ...prev, briefing: "Could not retrieve daily briefing" }));
     }
   };
 
   // Smart recommendations
-  const [smartRecs, setSmartRecs] = useState<SmartRecommendations | null>(null);
-  const fetchSmartRecs = async () => {
-    try {
-      const data = await aiInsightsApi.getSmartRecommendations();
-      setSmartRecs(data);
-    } catch (err) {
-      errors.smart_recs = "Could not retrieve smart recommendations";
-    }
-  };
-
   useEffect(() => {
+    void fetchWorkSummary();
     fetchAttendance();
     fetchLeave();
     fetchPayroll();
     fetchPerformance();
     fetchBriefing();
-    fetchSmartRecs();
-    setOverallLoading(false);
-  }, []);
+    const refreshInterval = window.setInterval(() => void fetchWorkSummary(), 60_000);
+    return () => window.clearInterval(refreshInterval);
+  }, [fetchWorkSummary]);
 
-  const handleApplyLeaveSuggestion = (period: LeaveSuggestion['suggested_periods'][0]) => {
+  const handleApplyLeaveSuggestion = (period: NonNullable<LeaveSuggestion['suggested_periods']>[number]) => {
     if (!period) return;
     // Auto-populate leave form with suggested dates
     const start = new Date(period.start_date);
@@ -123,53 +139,74 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
 
   if (overallLoading) {
     return (
-      <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="page-stack insights-page" style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-          <LoadingSpinner size={48} />
-          <p>Loading AI insights...</p>
+          <div className="spinner spinner-brand" style={{ width: 40, height: 40 }} />
+          <p>Loading work insights…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Navigation Tabs */}
-      <div className="tab-navigation" style={{ display: 'flex', gap: 4, background: var(--bg-surface-raised), padding: 8, borderRadius: 10 }}>
+    <div className="page-stack insights-page" style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <header className="page-heading insights-heading">
+        <div>
+          <h1>Work insights</h1>
+          <p>Patterns and planning notes based on your recent activity.</p>
+          {workSummary && (
+            <p className="insights-updated">
+              Updated {new Date(workSummary.as_of).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => void fetchWorkSummary()}
+          disabled={summaryLoading}
+          aria-label="Refresh work insights"
+        >
+          <RefreshCw size={14} className={summaryLoading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </header>
+      {summaryError && <div className="alert alert-error" role="alert">{summaryError}</div>}
+      <div className="tab-navigation" style={{ display: 'flex', gap: 4, background: 'var(--bg-surface-raised)', padding: 8, borderRadius: 10 }}>
         <button
           className={`tab-btn ${tabs === 'attendance' ? 'active' : ''}`}
           onClick={() => setTabs('attendance')}
           style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
         >
-          Attendance Analytics
+          Attendance
         </button>
         <button
           className={`tab-btn ${tabs === 'leave' ? 'active' : ''}`}
           onClick={() => setTabs('leave')}
           style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
         >
-          Leave Optimisation
+          Leave planning
         </button>
         <button
           className={`tab-btn ${tabs === 'payroll' ? 'active' : ''}`}
           onClick={() => setTabs('payroll')}
           style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
         >
-          Payroll & Finance
+          Pay & finance
         </button>
         <button
           className={`tab-btn ${tabs === 'performance' ? 'active' : ''}`}
           onClick={() => setTabs('performance')}
           style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
         >
-          Performance & Growth
+          Growth
         </button>
         <button
           className={`tab-btn ${tabs === 'briefing' ? 'active' : ''}`}
           onClick={() => setTabs('briefing')}
           style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
         >
-          Daily Briefing
+          Daily brief
         </button>
       </div>
 
@@ -177,12 +214,30 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
       {tabs === 'attendance' && (
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-            AI Attendance Analytics
+            Attendance patterns
           </h2>
-          {errors.attendance && <Alert type="error" message={errors.attendance} />}
-          {attendanceInsights && <AIInsightsWidget user={user} />}
-          {!attendanceInsights && !errors.attendance && (
-            <p style={{ color: 'var(--text-muted)' }}>No attendance data available yet. Start clocking in to unlock AI insights.</p>
+          {errors.attendance && <div className="alert alert-error" role="alert">{errors.attendance}</div>}
+          {workSummary && (
+            <div className="work-summary-panel">
+              <h3>Attendance in the last 30 days</h3>
+              <div className="insight-stat-grid">
+                <InsightStat label="Recorded days" value={workSummary.attendance.days_recorded} />
+                <InsightStat label="Hours recorded" value={`${workSummary.attendance.total_hours}h`} />
+                <InsightStat label="Average completed day" value={workSummary.attendance.average_hours == null ? '—' : `${workSummary.attendance.average_hours}h`} />
+              </div>
+              {workSummary.attendance.active_check_in_at && (
+                <p className="work-summary-note">
+                  Currently clocked in since {new Date(workSummary.attendance.active_check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                </p>
+              )}
+              {workSummary.attendance.days_recorded === 0 && (
+                <p className="work-summary-note">No completed attendance records in this period yet.</p>
+              )}
+            </div>
+          )}
+          {attendanceInsights?.enabled && <AIInsightsWidget user={user} />}
+          {!summaryLoading && !workSummary && !summaryError && (
+            <p style={{ color: 'var(--text-muted)' }}>No attendance data is available yet.</p>
           )}
         </div>
       )}
@@ -190,15 +245,33 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
       {tabs === 'leave' && (
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-            AI Leave Optimisation
+            Leave planning
           </h2>
-          {errors.leave && <Alert type="error" message={errors.leave} />}
+          {errors.leave && <div className="alert alert-error" role="alert">{errors.leave}</div>}
+          {workSummary && (
+            <div className="work-summary-panel">
+              <h3>Your leave requests</h3>
+              <div className="insight-stat-grid">
+                <InsightStat label="Total requests" value={workSummary.leave.total_requests} />
+                <InsightStat label="Awaiting review" value={workSummary.leave.pending} />
+                <InsightStat label="Approved" value={workSummary.leave.approved} />
+              </div>
+              {workSummary.leave.next_approved && (
+                <p className="work-summary-note">
+                  Next approved leave: {formatWorkDate(workSummary.leave.next_approved.start_date)} – {formatWorkDate(workSummary.leave.next_approved.end_date)}.
+                </p>
+              )}
+              {workSummary.leave.total_requests === 0 && (
+                <p className="work-summary-note">Your submitted leave requests will appear here.</p>
+              )}
+            </div>
+          )}
 
           {/* Leave Suggestions */}
-          {leaveSuggestions && leaveSuggestions.enabled && (
+          {leaveSuggestions?.enabled && (
             <div className="leave-suggestions-panel">
               <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
-                AI Suggested Leave Periods
+                Possible leave windows
               </h3>
               {leaveSuggestions.suggested_periods && leaveSuggestions.suggested_periods.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -246,7 +319,7 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
                   ))}
                 </div>
               ) : (
-                <p style={{ color: 'var(--text-muted)' }}>No leave suggestions available yet. Submit leave requests to unlock AI optimisation.</p>
+                <p style={{ color: 'var(--text-muted)' }}>No leave suggestions are available yet.</p>
               )}
 
               <div style={{ marginTop: 16 }}>
@@ -268,38 +341,42 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
           )}
 
           {/* Draft Leave Reason */}
-          {leaveSuggestions && (
+          {leaveSuggestions?.enabled && (
             <div className="leave-draft-panel" style={{ marginTop: 24 }}>
               <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
-                AI-Draft Leave Reason
+                Draft a leave explanation
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Leave Type</label>
-                  <select style={{ padding: '6px 10px', fontSize: '0.8125rem', borderRadius: 6, border: '1px solid var(--border-default)' }}>
+                  <label htmlFor="draft-leave-type" className="field-label">Leave type</label>
+                  <select
+                    id="draft-leave-type"
+                    className="field-input"
+                    value={draftLeaveType}
+                    onChange={(event) => setDraftLeaveType(event.target.value)}
+                  >
                     <option value="ANNUAL">Annual Leave</option>
                     <option value="SICK">Sick Leave</option>
                     <option value="CASUAL">Casual Leave</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Duration</label>
+                  <label htmlFor="draft-duration" className="field-label">Duration</label>
                   <input
+                    id="draft-duration"
                     type="number"
-                    style={{ padding: '6px 10px', fontSize: '0.8125rem', borderRadius: 6, border: '1px solid var(--border-default)' }}
-                    placeholder="Days"
+                    className="field-input"
+                    min={1}
+                    max={30}
+                    value={draftDuration}
+                    onChange={(event) => setDraftDuration(Math.min(30, Math.max(1, Number(event.target.value) || 1)))}
                   />
                 </div>
               </div>
               <button
-                onClick={() => {
-                  if (leaveDraft && leaveDraft.enabled) {
-                    alert(`Draft (${leaveDraft.tone}):\n${leaveDraft.draft}`);
-                    leaveDraft.alternative_drafts?.forEach((alt, i) => {
-                      alert(`Alternative ${i + 1}: ${alt}`);
-                    });
-                  }
-                }}
+                onClick={() => void fetchLeaveDraft()}
+                disabled={draftLoading}
+                className="btn btn-primary btn-block"
                 style={{
                   width: '100%',
                   background: 'var(--color-brand-600)',
@@ -312,13 +389,11 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
                   cursor: 'pointer',
                 }}
               >
-                {leaveDraft && leaveDraft.enabled
-                ? (leaveDraft.draft ? 'Review Draft' : 'Generate Draft')
-                : 'Generate Draft'}
+                {draftLoading ? 'Generating…' : 'Generate draft'}
               </button>
               {leaveDraft && leaveDraft.enabled && (
                 <div style={{ marginTop: 12, padding: 12, background: 'var(--brand-subtle)', borderRadius: 6, fontSize: '0.8125rem' }}>
-                  <strong>AI Draft:</strong> {leaveDraft.draft}<br />
+                  <strong>Draft:</strong> {leaveDraft.draft}<br />
                   <em>Tone: {leaveDraft.tone}</em>
                   {leaveDraft.alternative_drafts && leaveDraft.alternative_drafts.length > 0 && (
                     <div style={{ marginTop: 8, fontSize: '0.75rem' }}>
@@ -335,9 +410,28 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
       {tabs === 'payroll' && (
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-            AI Payroll & Financial Insights
+            Pay and financial overview
           </h2>
-          {errors.payroll && <Alert type="error" message={errors.payroll} />}
+          {errors.payroll && <div className="alert alert-error" role="alert">{errors.payroll}</div>}
+          {workSummary && (
+            <div className="work-summary-panel">
+              <h3>Payroll records</h3>
+              <div className="insight-stat-grid">
+                <InsightStat label="Payslips available" value={workSummary.payroll.payslip_count} />
+                <InsightStat
+                  label="Latest net pay"
+                  value={workSummary.payroll.latest_payslip ? `$${workSummary.payroll.latest_payslip.net_salary.toLocaleString()}` : '—'}
+                />
+                <InsightStat
+                  label="Latest period"
+                  value={workSummary.payroll.latest_payslip ? formatPayPeriod(workSummary.payroll.latest_payslip.month, workSummary.payroll.latest_payslip.year) : '—'}
+                />
+              </div>
+              {workSummary.payroll.payslip_count === 0 && (
+                <p className="work-summary-note">No payslip records are available yet.</p>
+              )}
+            </div>
+          )}
           {payrollInsights && payrollInsights.enabled && (
             <div className="payroll-insights-panel">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -425,9 +519,31 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
       {tabs === 'performance' && (
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-            AI Performance & Career Growth
+            Performance and development
           </h2>
-          {errors.performance && <Alert type="error" message={errors.performance} />}
+          {errors.performance && <div className="alert alert-error" role="alert">{errors.performance}</div>}
+          {workSummary && (
+            <div className="work-summary-panel">
+              <h3>Learning activity</h3>
+              <div className="insight-stat-grid">
+                <InsightStat label="Courses" value={workSummary.learning.total_courses} />
+                <InsightStat label="Completed" value={workSummary.learning.completed_courses} />
+                <InsightStat label="Hours completed" value={workSummary.learning.completed_hours} />
+              </div>
+              {workSummary.learning.courses.length > 0 ? (
+                <ul className="work-summary-list">
+                  {workSummary.learning.courses.map(course => (
+                    <li key={course.title}>
+                      <span>{course.title}</span>
+                      <span>{course.status.replaceAll('_', ' ').toLowerCase()} · {course.hours}h</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="work-summary-note">Assigned courses and completed training will appear here.</p>
+              )}
+            </div>
+          )}
           {performanceInsights && performanceInsights.enabled && (
             <div className="performance-insights-panel">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -460,7 +576,7 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
 
               {performanceInsights.recognition_message && (
                 <div style={{ background: 'var(--brand-subtle)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}{{ performanceInsights.recognition_message }}</p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>{performanceInsights.recognition_message}</p>
                 </div>
               )}
 
@@ -477,7 +593,7 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
 
               {performanceInsights.recommended_courses && performanceInsights.recommended_courses.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <strong>AI-Recommended Courses:</strong>
+                  <strong>Suggested courses:</strong>
                   <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                     {performanceInsights.recommended_courses.map((course, i) => (
                       <li key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -520,9 +636,27 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
       {tabs === 'briefing' && (
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-            AI Daily Briefing
+            Daily briefing
           </h2>
-          {errors.briefing && <Alert type="error" message={errors.briefing} />}
+          {errors.briefing && <div className="alert alert-error" role="alert">{errors.briefing}</div>}
+          {workSummary && (
+            <div className="work-summary-panel">
+              <h3>Today in your workspace</h3>
+              <ul className="work-summary-list">
+                <li>
+                  <span>Attendance</span>
+                  <span>{workSummary.attendance.active_check_in_at ? `Clocked in at ${new Date(workSummary.attendance.active_check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Not clocked in'}</span>
+                </li>
+                <li><span>Leave requests awaiting review</span><span>{workSummary.leave.pending}</span></li>
+                <li><span>Courses in progress</span><span>{workSummary.learning.in_progress_courses.length}</span></li>
+              </ul>
+              {workSummary.leave.next_approved && (
+                <p className="work-summary-note">
+                  Upcoming leave: {formatWorkDate(workSummary.leave.next_approved.start_date)} – {formatWorkDate(workSummary.leave.next_approved.end_date)}.
+                </p>
+              )}
+            </div>
+          )}
           {dailyBriefing && dailyBriefing.enabled && (
             <div className="daily-briefing-panel">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -586,6 +720,28 @@ export const AIInsightsPage: React.FC<AIInsightsPageProps> = ({ user }) => {
     </div>
   );
 };
+
+const InsightStat: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
+  <div className="insight-stat">
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+function formatWorkDate(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatPayPeriod(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 // Helper color functions
 const getScoreColor = (score: number) => {

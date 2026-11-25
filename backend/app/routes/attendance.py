@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from ..database import get_db
 from ..models import Attendance, User
 from ..schemas import AttendanceResponse
 from ..auth import get_current_user
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
+
+def utc_now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 @router.get("/status", response_model=AttendanceResponse)
 async def get_status(
@@ -16,7 +19,7 @@ async def get_status(
 ):
     result = await db.execute(
         select(Attendance)
-        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time == None)
+        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time.is_(None))
         .order_by(Attendance.check_in_time.desc())
     )
     active = result.scalars().first()
@@ -26,8 +29,8 @@ async def get_status(
             "id": 0,
             "user_id": current_user.id,
             "date": date.today(),
-            "check_in_time": datetime.now(),
-            "check_out_time": datetime.now(),
+            "check_in_time": utc_now_naive(),
+            "check_out_time": utc_now_naive(),
             "hours_worked": 0.0,
             "status": "CHECKED_OUT"
         }
@@ -41,7 +44,7 @@ async def check_in(
     # Check if already checked in
     result = await db.execute(
         select(Attendance)
-        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time == None)
+        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time.is_(None))
     )
     if result.scalars().first():
         raise HTTPException(
@@ -52,7 +55,7 @@ async def check_in(
     new_log = Attendance(
         user_id=current_user.id,
         date=date.today(),
-        check_in_time=datetime.now(),
+        check_in_time=utc_now_naive(),
         status="PRESENT"
     )
     db.add(new_log)
@@ -67,7 +70,7 @@ async def check_out(
 ):
     result = await db.execute(
         select(Attendance)
-        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time == None)
+        .filter(Attendance.user_id == current_user.id, Attendance.check_out_time.is_(None))
         .order_by(Attendance.check_in_time.desc())
     )
     active = result.scalars().first()
@@ -77,7 +80,7 @@ async def check_out(
             detail="No active check-in session found"
         )
         
-    active.check_out_time = datetime.now()
+    active.check_out_time = utc_now_naive()
     duration = active.check_out_time - active.check_in_time
     active.hours_worked = max(0.0, duration.total_seconds() / 3600.0)
     

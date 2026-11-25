@@ -103,6 +103,34 @@ export interface AttendanceInsight {
   };
 }
 
+export interface WorkSummary {
+  as_of: string;
+  attendance: {
+    days_recorded: number;
+    total_hours: number;
+    average_hours: number | null;
+    active_check_in_at: string | null;
+  };
+  leave: {
+    total_requests: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    next_approved: { start_date: string; end_date: string } | null;
+  };
+  payroll: {
+    payslip_count: number;
+    latest_payslip: { month: number; year: number; net_salary: number } | null;
+  };
+  learning: {
+    total_courses: number;
+    completed_courses: number;
+    completed_hours: number;
+    in_progress_courses: string[];
+    courses: Array<{ title: string; status: string; hours: number }>;
+  };
+}
+
 export interface LeaveSuggestion {
   enabled: boolean;
   suggested_periods?: Array<{
@@ -304,6 +332,10 @@ export const assistantApi = {
 };
 
 export const aiInsightsApi = {
+  getWorkSummary: async (): Promise<WorkSummary> => {
+    const response = await api.get<WorkSummary>('/ai/work-summary');
+    return response.data;
+  },
   getAttendanceInsights: async (): Promise<AttendanceInsight> => {
     const response = await api.get<AttendanceInsight>('/ai/attendance/insights');
     return response.data;

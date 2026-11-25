@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { attendanceApi } from '../services/api';
-import { Play, Square, Clock, DollarSign, ChevronRight, User as UserIcon, CalendarDays, Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { Play, Square, Clock, DollarSign, ChevronRight, User as UserIcon, CalendarDays, Loader2, AlertCircle, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { DailyPlanner } from '../components/DailyPlanner';
@@ -27,23 +27,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const attData = await attendanceApi.getStatus();
       setAttendance(attData);
+      setClockError('');
     } catch {
-      // Attendance status unavailable — non-critical
+      setClockError('Attendance status could not be refreshed. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
+    void loadData();
+    const intervalId = window.setInterval(() => void loadData(), 60_000);
+    const handleFocus = () => void loadData();
+    window.addEventListener('focus', handleFocus);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [loadData]);
 
   const isCheckedIn = Boolean(
     attendance &&
@@ -51,33 +56,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     !attendance.checkOutTime &&
     attendance.status === 'PRESENT'
   );
+  const checkInTimestamp = attendance?.checkInTime || attendance?.check_in_time;
 
-  // Live elapsed timer for active check-in
   useEffect(() => {
-    const checkInTimestamp = attendance?.checkInTime || attendance?.check_in_time;
-    if (isCheckedIn && checkInTimestamp) {
-      const checkIn = new Date(checkInTimestamp).getTime();
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
 
-      const update = () => {
-        const diff = Date.now() - checkIn;
-        if (diff > 0) {
-          const h = Math.floor(diff / 3600000);
-          const m = Math.floor((diff % 3600000) / 60000);
-          const s = Math.floor((diff % 60000) / 1000);
-          setTimeString(`${pad(h)}:${pad(m)}:${pad(s)}`);
-        }
-      };
+    if (!isCheckedIn || !checkInTimestamp) {
+      setTimeString('00:00:00');
+      return;
+    }
 
-      update();
-      timerRef.current = setInterval(update, 1000);
-    } else {
+    const checkIn = new Date(checkInTimestamp).getTime();
+    const update = () => {
+      const diff = Math.max(0, Date.now() - checkIn);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeString(`${pad(h)}:${pad(m)}:${pad(s)}`);
+    };
+
+    update();
+    timerRef.current = window.setInterval(update, 1000);
+    return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        window.clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      setTimeString('00:00:00');
-    }
-  }, [isCheckedIn, attendance]);
+    };
+  }, [isCheckedIn, checkInTimestamp]);
 
   const handleClockToggle = async () => {
     setClockLoading(true);
@@ -86,10 +95,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (isCheckedIn) {
         const updated = await attendanceApi.checkOut();
         setAttendance(updated);
+        setClockError('');
         showToast('Clocked out successfully', 'success');
       } else {
         const updated = await attendanceApi.checkIn();
         setAttendance(updated);
+        setClockError('');
         showToast('Clocked in successfully', 'success');
       }
     } catch (err: any) {
@@ -111,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1100 }}>
+      <div className="page-stack dashboard-page" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1100 }}>
         {/* Greeting skeleton */}
         <div>
           <div className="skeleton" style={{ height: 28, width: 280, marginBottom: 8 }} />
@@ -127,10 +138,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1100 }}>
+    <div className="page-stack dashboard-page" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1100 }}>
 
       {/* Page greeting */}
-      <div>
+      <div className="page-heading dashboard-heading">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           Good {getGreeting()}, {user?.fullName?.split(' ')[0]}
         </h1>
@@ -140,11 +151,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       </div>
 
       {/* Top metrics row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
 
         {/* Time clock */}
         <div
-          className="stat-card"
+          className="stat-card clock-card"
           style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -153,7 +164,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <p
                 style={{
                   fontSize: '0.8125rem',
-                  color: isCheckedIn ? '#10b981' : 'var(--text-muted)',
+                  color: isCheckedIn ? 'var(--color-brand-600)' : 'var(--text-muted)',
                   marginTop: 2,
                   fontWeight: 500,
                 }}
@@ -191,13 +202,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <button
             onClick={handleClockToggle}
             disabled={clockLoading}
-            className={`btn btn-block`}
-            style={{
-              backgroundColor: isCheckedIn ? '#dc2626' : 'var(--color-brand-600)',
-              borderColor: isCheckedIn ? '#dc2626' : 'var(--color-brand-600)',
-              color: '#fff',
-              fontWeight: 600,
-            }}
+            className={`btn btn-block clock-toggle-button ${isCheckedIn ? 'is-checked-in' : ''}`}
           >
             {clockLoading ? (
               <Loader2 size={15} className="animate-spin" />
@@ -216,15 +221,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
 
         {/* Monthly pay */}
-        <div className="stat-card">
+        <div className="stat-card salary-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <p className="stat-label">Monthly pay</p>
-            <DollarSign size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+            <DollarSign size={18} style={{ color: 'var(--color-brand-500)', flexShrink: 0 }} />
           </div>
           <p className="stat-value">
             ${monthlyPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="stat-label" style={{ marginTop: 4 }}>Net take-home per month</p>
+          <p className="stat-label" style={{ marginTop: 4 }}>Estimated from annual salary</p>
           <button
             onClick={() => navigate('/payroll')}
             style={{
@@ -247,7 +252,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
 
         {/* Quick actions */}
-        <div className="stat-card">
+        <div className="stat-card quick-actions-card">
           <p className="stat-label" style={{ marginBottom: 12 }}>Quick actions</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <QuickLink
@@ -266,7 +271,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               onClick={() => navigate('/payroll')}
             />
             <QuickLink
-              icon={<Sparkles size={15} />}
+              icon={<MessageCircle size={15} />}
               label="Ask the HR assistant"
               onClick={() => navigate('/assistant')}
             />

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List
 from pydantic import BaseModel
 
@@ -103,6 +103,14 @@ class DailyBriefingResponse(BaseModel):
     wellness: Optional[dict] = None
 
 
+class WorkSummaryResponse(BaseModel):
+    as_of: datetime
+    attendance: dict
+    leave: dict
+    payroll: dict
+    learning: dict
+
+
 class LeaveDraftRequest(BaseModel):
     leave_type: str
     start_date: str
@@ -110,6 +118,132 @@ class LeaveDraftRequest(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
+
+@router.get("/work-summary", response_model=WorkSummaryResponse)
+async def get_work_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return factual, personal work metrics without requiring an AI provider."""
+    today = date.today()
+    period_start = today - timedelta(days=30)
+    attendance_logs = (
+        await db.execute(
+            select(Attendance)
+            .filter(
+                Attendance.user_id == current_user.id,
+                Attendance.date >= period_start,
+            )
+            .order_by(Attendance.check_in_time.desc())
+        )
+    ).scalars().all()
+    completed_logs = [log for log in attendance_logs if log.check_out_time]
+    hours_by_day: dict[date, float] = {}
+    for log in completed_logs:
+        hours = log.hours_worked
+        if hours is None:
+            hours = max(
+                0.0,
+                (log.check_out_time - log.check_in_time).total_seconds() / 3600,
+            )
+        hours_by_day[log.date] = hours_by_day.get(log.date, 0.0) + hours
+    total_hours = sum(hours_by_day.values())
+    active_log = next((log for log in attendance_logs if not log.check_out_time), None)
+
+    leave_requests = (
+        await db.execute(
+            select(LeaveRequest)
+            .filter(LeaveRequest.user_id == current_user.id)
+            .order_by(LeaveRequest.start_date.asc())
+        )
+    ).scalars().all()
+    leave_counts = {
+        status_name.lower(): sum(1 for leave in leave_requests if leave.status == status_name)
+        for status_name in ("PENDING", "APPROVED", "REJECTED")
+    }
+    next_approved_leave = next(
+        (
+            leave
+            for leave in leave_requests
+            if leave.status == "APPROVED" and leave.end_date >= today
+        ),
+        None,
+    )
+
+    latest_payslip = (
+        await db.execute(
+            select(Payslip)
+            .filter(Payslip.user_id == current_user.id)
+            .order_by(Payslip.year.desc(), Payslip.month.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    payslip_count = await db.scalar(
+        select(func.count(Payslip.id)).filter(Payslip.user_id == current_user.id)
+    )
+
+    courses = (
+        await db.execute(
+            select(TrainingCourse)
+            .filter(TrainingCourse.user_id == current_user.id)
+            .order_by(TrainingCourse.title.asc())
+        )
+    ).scalars().all()
+    completed_courses = [course for course in courses if course.status == "COMPLETED"]
+
+    active_check_in = None
+    if active_log:
+        check_in_time = active_log.check_in_time
+        if check_in_time.tzinfo is None:
+            check_in_time = check_in_time.replace(tzinfo=timezone.utc)
+        else:
+            check_in_time = check_in_time.astimezone(timezone.utc)
+        active_check_in = check_in_time
+
+    return {
+        "as_of": datetime.now(timezone.utc),
+        "attendance": {
+            "days_recorded": len(hours_by_day),
+            "total_hours": round(total_hours, 2),
+            "average_hours": round(total_hours / len(hours_by_day), 2)
+            if hours_by_day
+            else None,
+            "active_check_in_at": active_check_in,
+        },
+        "leave": {
+            "total_requests": len(leave_requests),
+            **leave_counts,
+            "next_approved": {
+                "start_date": next_approved_leave.start_date,
+                "end_date": next_approved_leave.end_date,
+            }
+            if next_approved_leave
+            else None,
+        },
+        "payroll": {
+            "payslip_count": payslip_count or 0,
+            "latest_payslip": {
+                "month": latest_payslip.month,
+                "year": latest_payslip.year,
+                "net_salary": latest_payslip.net_salary,
+            }
+            if latest_payslip
+            else None,
+        },
+        "learning": {
+            "total_courses": len(courses),
+            "completed_courses": len(completed_courses),
+            "completed_hours": sum(course.hours for course in completed_courses),
+            "in_progress_courses": [
+                course.title for course in courses if course.status == "IN_PROGRESS"
+            ],
+            "courses": [
+                {"title": course.title, "status": course.status, "hours": course.hours}
+                for course in courses
+            ],
+        },
+    }
+
 
 @router.get("/attendance/insights", response_model=AttendanceInsightsResponse)
 async def get_attendance_insights(
@@ -275,13 +409,16 @@ async def get_payroll_insights(
     if not payslips:
         return {"enabled": True, "insights": ["No payroll data available yet."]}
 
+    async def empty_coro():
+        return {}
+
     trends, market_comparison, forecast = await asyncio.gather(
         PayrollAIService.analyze_salary_trends(payslips),
         PayrollAIService.compare_market_salary(
             current_user.position or "Employee",
             current_user.department or "General",
             current_user.salary or 0,
-        ) if current_user.position and current_user.salary else asyncio.coroutine(lambda: {})(),
+        ) if current_user.position and current_user.salary else empty_coro(),
         PayrollAIService.forecast_annual_earnings(payslips, current_user.salary or 0),
         return_exceptions=True,
     )

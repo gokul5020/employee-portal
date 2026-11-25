@@ -37,6 +37,11 @@ services:
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_API_URL=${AI_API_URL:-https://api.openai.com/v1/chat/completions}
       - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-http://host.docker.internal:20128}
+      - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-OmniRoute AI}
     depends_on:
       - db
       - cache

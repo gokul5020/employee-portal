@@ -10,7 +10,8 @@ import {
   X,
   Search,
   Megaphone,
-  Sparkles,
+  MessageCircle,
+  BarChart3,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { CommandPalette } from './CommandPalette';
@@ -24,10 +25,11 @@ interface LayoutProps {
 
 const menuItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'My Profile', path: '/profile', icon: UserIcon },
   { name: 'Leave & Attendance', path: '/leaves', icon: CalendarDays },
   { name: 'Payroll', path: '/payroll', icon: DollarSign },
-  { name: 'HR Assistant', path: '/assistant', icon: Sparkles },
+  { name: 'HR Assistant', path: '/assistant', icon: MessageCircle },
+  { name: 'Work insights', path: '/ai-insights', icon: BarChart3 },
+  { name: 'My Profile', path: '/profile', icon: UserIcon },
 ];
 
 function getRoleBadgeClass(role: string): string {
@@ -54,54 +56,19 @@ interface SidebarContentProps {
 }
 
 const SidebarContent: React.FC<SidebarContentProps> = ({ user, currentPath, onNavigate, onLogout }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-    {/* Logo */}
-    <div
-      style={{
-        height: '56px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 20px',
-        borderBottom: '1px solid var(--border-default)',
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 6,
-          backgroundColor: 'var(--color-brand-600)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 700,
-          fontSize: 11,
-          color: '#fff',
-          flexShrink: 0,
-          letterSpacing: '-0.02em',
-        }}
-      >
-        EP
-      </div>
-      <span
-        style={{
-          marginLeft: 10,
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        Employee Portal
-      </span>
+  <div className="sidebar-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="sidebar-brand">
+      <div className="brand-mark">EP</div>
+      <span className="brand-name">Employee Portal</span>
     </div>
 
-    {/* Navigation */}
-    <nav style={{ flex: 1, padding: '14px 12px', overflowY: 'auto' }}>
+    <nav className="sidebar-nav" aria-label="Main navigation">
+      <p className="nav-section-label">Workspace</p>
       <div style={{ marginBottom: 4 }}>
         {menuItems.map((item) => {
-          const active = currentPath === item.path;
+          const active = item.path === '/'
+            ? currentPath === '/'
+            : currentPath.startsWith(item.path);
           const Icon = item.icon;
           return (
             <button
@@ -119,34 +86,9 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ user, currentPath, onNa
       </div>
     </nav>
 
-    {/* User Footer */}
-    <div
-      style={{
-        padding: '14px 16px',
-        borderTop: '1px solid var(--border-default)',
-        backgroundColor: 'var(--bg-surface-raised)',
-        flexShrink: 0,
-      }}
-    >
-      {/* User info */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <div
-          aria-hidden="true"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            backgroundColor: 'var(--brand-subtle)',
-            border: '1px solid var(--brand-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--color-brand-600)',
-            flexShrink: 0,
-          }}
-        >
+    <div className="sidebar-footer">
+      <div className="sidebar-user">
+        <div className="user-avatar" aria-hidden="true">
           {user?.fullName?.charAt(0) || 'U'}
         </div>
         <div style={{ minWidth: 0 }}>
@@ -178,7 +120,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ user, currentPath, onNa
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="sidebar-user-meta">
         <span className={getRoleBadgeClass(user?.role)}>
           {getRoleLabel(user?.role)}
         </span>
@@ -220,10 +162,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     menuItems.find((item) => item.path === location.pathname)?.name || 'Portal';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)' }}>
-      {/* Desktop Sidebar */}
+    <div className="workspace-shell" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)' }}>
       <aside
-        className="sidebar"
+        className="sidebar workspace-sidebar"
         style={{
           width: 230,
           flexShrink: 0,
@@ -239,23 +180,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         />
       </aside>
 
-      {/* Media query styling */}
-      <style>{`
-        @media (min-width: 1024px) {
-          #desktop-sidebar { display: block !important; }
-          #mobile-header-title { display: none; }
-          #header-search-bar { display: flex !important; }
-          #mobile-menu-button { display: none !important; }
-          #desktop-page-title { display: block !important; }
-        }
-        @media (max-width: 1023px) {
-          #mobile-header-title { display: flex; }
-          #header-search-bar { display: none; }
-          #desktop-page-title { display: none; }
-        }
-      `}</style>
-
-      {/* Mobile Drawer */}
       {drawerOpen && (
         <>
           <div
@@ -263,7 +187,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="drawer" role="dialog" aria-label="Navigation menu">
+          <div className="drawer workspace-drawer" role="dialog" aria-label="Navigation menu">
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
               <button
                 type="button"
@@ -285,11 +209,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         </>
       )}
 
-      {/* Main Content Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Top Header */}
         <header
-          className="app-header"
+          className="app-header app-topbar"
           style={{
             height: 56,
             display: 'flex',
@@ -302,9 +224,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             flexShrink: 0,
           }}
         >
-          {/* Header Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Mobile menu button */}
             <button
               onClick={() => setDrawerOpen(true)}
               className="btn btn-secondary btn-sm"
@@ -316,7 +236,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               <Menu size={18} />
             </button>
 
-            {/* Mobile Title */}
             <div
               style={{ display: 'flex', alignItems: 'center', gap: 8 }}
               id="mobile-header-title"
@@ -343,7 +262,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               </span>
             </div>
 
-            {/* Desktop Page Title */}
             <span
               style={{
                 fontSize: '0.875rem',
@@ -356,10 +274,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             </span>
           </div>
 
-          {/* Header Center / Search Bar (Desktop) */}
-          <div
+          <button
+            type="button"
             id="header-search-bar"
             onClick={() => setCommandPaletteOpen(true)}
+            className="header-search"
             style={{
               display: 'none',
               alignItems: 'center',
@@ -377,12 +296,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           >
             <Search size={14} />
             <span style={{ flex: 1 }}>Search or jump to...</span>
-            <kbd className="command-palette-kbd" style={{ fontSize: '0.625rem' }}>⌘K</kbd>
-          </div>
+            <kbd className="command-palette-kbd" style={{ fontSize: '0.625rem' }}>Ctrl K</kbd>
+          </button>
 
-          {/* Header Right: Actions & Theme Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Announcements Button */}
+            <button
+              type="button"
+              onClick={onLogout}
+              className="btn btn-danger btn-sm header-sign-out"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={14} />
+              <span>Sign out</span>
+            </button>
             <button
               type="button"
               onClick={() => setAnnouncementsOpen(true)}
@@ -393,26 +320,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             >
               <Megaphone size={14} />
               <span style={{ fontSize: '0.75rem' }}>Notices</span>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: '#3b82f6',
-                  position: 'absolute',
-                  top: 5,
-                  right: 5,
-                }}
-              />
             </button>
 
-            {/* Theme Toggle (Light / Dark / System) */}
             <ThemeToggle />
           </div>
         </header>
 
-        {/* Page Content */}
         <main
+          className="page-content"
           style={{
             flex: 1,
             padding: '24px 24px',
@@ -423,14 +338,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         </main>
       </div>
 
-      {/* Command Palette Modal */}
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         user={user}
       />
 
-      {/* Announcements Modal */}
       <AnnouncementsModal
         isOpen={announcementsOpen}
         onClose={() => setAnnouncementsOpen(false)}

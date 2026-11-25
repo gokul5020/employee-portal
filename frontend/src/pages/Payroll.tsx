@@ -70,7 +70,7 @@ export const Payroll: React.FC<PayrollProps> = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="page-stack payroll-page" style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div>
           <div className="skeleton" style={{ height: 28, width: 160, marginBottom: 8 }} />
           <div className="skeleton" style={{ height: 16, width: 240 }} />
@@ -89,10 +89,10 @@ export const Payroll: React.FC<PayrollProps> = ({ user }) => {
   const standardDeduction = 200;
 
   return (
-    <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="page-stack payroll-page" style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Page header */}
-      <div>
+      <div className="page-heading">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           Payroll & Compensation
         </h1>
@@ -102,7 +102,7 @@ export const Payroll: React.FC<PayrollProps> = ({ user }) => {
       </div>
 
       {/* Overview stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+      <div className="payroll-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
         <div className="stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <span className="stat-label">Annual salary</span>
@@ -141,7 +141,7 @@ export const Payroll: React.FC<PayrollProps> = ({ user }) => {
       </div>
 
       {/* Main payslip area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
+      <div className="payroll-layout" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
 
         {/* Payslip list */}
         <section style={{ minWidth: 0 }}>

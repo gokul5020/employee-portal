@@ -24,7 +24,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {
       // ignore
     }
-    return 'dark'; // Default to dark theme
+    return 'light';
   });
 
   const [systemIsDark, setSystemIsDark] = useState<boolean>(() => {

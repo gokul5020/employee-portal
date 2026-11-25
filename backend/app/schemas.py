@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr, computed_field, Field
+from pydantic import BaseModel, EmailStr, computed_field, field_serializer, Field
 from typing import Optional, List
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 # Auth Schemas
 class UserLogin(BaseModel):
@@ -58,15 +58,29 @@ class AttendanceResponse(BaseModel):
     hours_worked: Optional[float] = None
     status: str
 
+    @field_serializer("check_in_time", "check_out_time")
+    def serialize_attendance_times(self, value: Optional[datetime]) -> Optional[datetime]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
     @computed_field
     @property
     def checkInTime(self) -> datetime:
-        return self.check_in_time
+        value = self.check_in_time
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
     @computed_field
     @property
     def checkOutTime(self) -> Optional[datetime]:
-        return self.check_out_time
+        value = self.check_out_time
+        if value is None or value.tzinfo is not None:
+            return value.astimezone(timezone.utc) if value else None
+        return value.replace(tzinfo=timezone.utc)
 
     @computed_field
     @property

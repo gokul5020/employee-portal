@@ -166,10 +166,10 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
   };
 
   return (
-    <div style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="page-stack leave-page" style={{ maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="page-heading page-heading-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Leave & Attendance
@@ -537,7 +537,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ user }) => {
                         )}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                        {item.hoursWorked != null ? `${item.hoursWorked}h` : '—'}
+                        {item.hoursWorked != null ? `${Number(item.hoursWorked).toFixed(2)}h` : '—'}
                       </td>
                     </tr>
                   ))}

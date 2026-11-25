@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Square, Plus, Trash2, Copy, Check, Sparkles } from 'lucide-react';
+import { CheckSquare, Square, Plus, Trash2, Copy, Check } from 'lucide-react';
 import { useToast } from './Toast';
 
 interface Task {
@@ -109,7 +109,7 @@ export const DailyPlanner: React.FC<{ user: any }> = ({ user }) => {
               justifyContent: 'center',
             }}
           >
-            <Sparkles size={18} />
+            <CheckSquare size={18} />
           </div>
           <div>
             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>

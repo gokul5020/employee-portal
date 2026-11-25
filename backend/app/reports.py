@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from openpyxl.utils import get_column_letter
 from .models import LeaveRequest, Attendance, Payslip, User
 
 # Helper to apply styling to Excel Worksheets
@@ -38,13 +39,14 @@ def style_excel_ws(ws, title: str, headers: list):
         cell.border = thin_border
         
     # Auto-adjust column width
-    for col in ws.columns:
+    for column_idx in range(1, ws.max_column + 1):
         max_len = 0
-        for cell in col:
+        for row_idx in range(2, ws.max_row + 1):
+            cell = ws.cell(row=row_idx, column=column_idx)
             val_str = str(cell.value or '')
             if len(val_str) > max_len:
                 max_len = len(val_str)
-        col_letter = col[0].column_letter
+        col_letter = get_column_letter(column_idx)
         ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
 
 def generate_leave_report(leaves: list) -> bytes:
@@ -93,7 +95,7 @@ def generate_attendance_report(logs: list) -> bytes:
     ws = wb.active
     ws.title = "Clocking Logs"
     
-    headers = ["Employee Name", "Date", "Clock In Time", "Clock Out Time", "Hours Worked", "Status"]
+    headers = ["Employee Name", "Date", "Clock In Time (UTC)", "Clock Out Time (UTC)", "Hours Worked", "Status"]
     style_excel_ws(ws, "EMPLOYEE CLOCKING HISTORY REPORT", headers)
     
     data_font = Font(name='Segoe UI', size=10)
@@ -107,7 +109,7 @@ def generate_attendance_report(logs: list) -> bytes:
     for row_idx, log in enumerate(logs, 3):
         ws.row_dimensions[row_idx].height = 20
         check_out_str = log.check_out_time.strftime('%H:%M:%S') if log.check_out_time else "N/A"
-        hours_str = f"{log.hours_worked:.2f}" if log.hours_worked is not None else "0.00"
+        hours_str = f"{log.hours_worked:.2f}" if log.hours_worked is not None else "In progress"
         
         row_data = [
             log.user.full_name,

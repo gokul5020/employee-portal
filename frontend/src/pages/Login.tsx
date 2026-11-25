@@ -35,6 +35,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   return (
     <div
+      className="auth-page"
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -45,52 +46,37 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         position: 'relative',
       }}
     >
-      {/* Top right theme toggle */}
+      <aside className="auth-story">
+        <div className="auth-story-brand">
+          <div className="brand-mark">EP</div>
+          <span>Employee Portal</span>
+        </div>
+        <div className="auth-story-copy">
+          <p className="eyebrow">PEOPLE OPERATIONS</p>
+          <h2>Your workday,<br />all in one place.</h2>
+          <p>Take care of the practical things — time, leave, pay and your details — so you can focus on the work ahead.</p>
+        </div>
+        <p className="auth-story-footnote">A secure workspace for your work life.</p>
+      </aside>
+
       <div style={{ position: 'absolute', top: 20, right: 20 }}>
         <ThemeToggle />
       </div>
 
-      <div style={{ width: '100%', maxWidth: 420 }}>
-        {/* Brand header */}
-        <div style={{ marginBottom: 28, textAlign: 'center' }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              backgroundColor: 'var(--color-brand-600)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 15,
-              color: '#fff',
-              margin: '0 auto 16px',
-              letterSpacing: '-0.02em',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            EP
-          </div>
+      <main className="auth-content">
+        <div className="auth-brand">
           <h1
-            style={{
-              fontSize: '1.35rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-              letterSpacing: '-0.02em',
-            }}
+            className="auth-title"
           >
-            Employee Portal
+            Welcome back
           </h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 6 }}>
-            Sign in to access your self-service workspace
+          <p className="auth-subtitle">
+            Sign in to continue to your workspace.
           </p>
         </div>
 
-        {/* Login form */}
         <div
-          className="surface"
+          className="surface auth-card"
           style={{ padding: 28 }}
         >
           {error && (
@@ -155,8 +141,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </form>
         </div>
 
-        {/* Demo credentials */}
-        <div style={{ marginTop: 20 }}>
+        <div className="auth-demo" style={{ marginTop: 20 }}>
           <p
             style={{
               fontSize: '0.75rem',
@@ -205,7 +190,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             ))}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

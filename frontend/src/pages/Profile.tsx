@@ -59,10 +59,10 @@ export const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate }) => {
   }
 
   return (
-    <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="page-stack profile-page" style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Page header */}
-      <div>
+      <div className="page-heading">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           My Profile
         </h1>
